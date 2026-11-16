@@ -66,13 +66,28 @@ class GuessingTests(unittest.TestCase):
     @patch('ui.game_flow.visual.answer_card')
     @patch('ui.game_flow.visual.question_card')
     @patch('ui.game_flow.st')
-    def test_storyteller_sees_own_answer_while_listeners_guess(self, st, question, answer, waiting):
+    def test_storyteller_sees_all_answers_while_listeners_guess(self, st, question, answer, waiting):
         self.state['listener_guesses'] = {'one': {'label': 'C'}}
         self.flow._render_guess_phase(self.room, self.state, 'story', 'story', False)
         st.header.assert_called_once_with('Listeners are guessing')
-        answer.assert_called_once_with('Your answer', 'Story answer')
+        markup = st.html.call_args.args[0]
+        for text in ('Story answer', 'One answer', 'Two answer', 'Your answer'):
+            self.assertIn(text, markup)
+        self.assertNotIn('owner_id', markup)
+        answer.assert_not_called()
         waiting.assert_called_once_with('Waiting for 1 listener to choose…', '')
         st.radio.assert_not_called()
+
+    @patch('ui.game_flow.st')
+    def test_storyteller_answers_use_columns_of_five_and_escape_text(self, st):
+        options = [{'text': f'Answer <{i}>', 'owner_id': str(i)} for i in range(8)]
+        self.flow._render_storyteller_answers(options, '0')
+        markup = st.html.call_args.args[0]
+        columns = markup.split('class="story-answer-column"')[1:]
+        self.assertEqual([column.count('role="listitem"') for column in columns], [5, 3])
+        self.assertIn('Answer &lt;0&gt;', columns[0])
+        self.assertIn('Answer &lt;5&gt;', columns[1])
+        self.assertEqual(markup.count('Your answer'), 1)
 
 
 if __name__ == '__main__':

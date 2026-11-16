@@ -773,9 +773,7 @@ class GameFlow:
                             state["listener_guesses"] = guesses
                             self._save_state(room, state)
         elif current_player_id == storyteller_id and storyteller_id is not None:
-            own_answer = next((opt.get("text", "") for opt in options if opt.get("owner_id") == storyteller_id), "")
-            if own_answer:
-                visual.answer_card("Your answer", own_answer)
+            self._render_storyteller_answers(options, storyteller_id)
         else:
             st.warning("Your player session is unavailable. Return to the room and resume your player.")
             return
@@ -799,6 +797,24 @@ class GameFlow:
                 if st.button("Reveal without all guesses", key="host_force_reveal", width="stretch"):
                     state["phase"] = "reveal"
                     self._save_state(room, state)
+
+    @staticmethod
+    def _render_storyteller_answers(options, storyteller_id: str) -> None:
+        """Show all answer choices without revealing who wrote the decoys."""
+        cards = []
+        for option in options:
+            own = option.get("owner_id") == storyteller_id
+            label = '<span class="story-answer-label">Your answer</span>' if own else ''
+            cards.append(f'<div class="story-answer{" own" if own else ""}" role="listitem">'
+                         f'{label}<span>{html.escape(str(option.get("text", "")))}</span></div>')
+        groups = [cards[index:index + 5] for index in range(0, len(cards), 5)]
+        columns = ''.join(f'<div class="story-answer-column" role="list">{"".join(group)}</div>'
+                          for group in groups)
+        st.markdown("**Submitted answers**")
+        if len(groups) > 1:
+            st.caption("Scroll sideways to see all answers →")
+        st.html(f'<div class="story-answer-columns{" multiple" if len(groups) > 1 else ""}" '
+                f'role="region" tabindex="0" aria-label="Submitted answers">{columns}</div>')
 
     def _render_reveal_phase(
         self,

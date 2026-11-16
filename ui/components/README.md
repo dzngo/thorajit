@@ -2,7 +2,7 @@
 
 The Streamlit v2 component bundles Emoji Mart 5.6.0 and its data 1.2.1 locally, so selecting an emoji does not require a third-party service at runtime. `emoji_data.json` is also used by Python to validate and reserve choices. The MIT license is in `EMOJI-LICENSE`.
 
-Choices are staged in the picker until the player selects **Use this emoji**. Canceling or closing the picker retains the previous selection; availability is checked again when the room is joined or the profile is saved.
+Selecting an emoji applies it immediately. Closing the picker without selecting keeps the previous choice; availability is checked again when the room is joined or the profile is saved.
 
 To rebuild after modifying `emoji_picker_src.js`, install `emoji-mart@5.6.0`, `@emoji-mart/data@1.2.1`, and `esbuild@0.25.12` in a temporary npm project, then run esbuild with that project's `node_modules` in `NODE_PATH`:
 

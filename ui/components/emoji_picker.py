@@ -14,14 +14,6 @@ _PICKER = st.components.v2.component(
       font-family: inherit; font-size: 1rem; cursor: pointer; }
     .emoji-trigger:focus-visible { outline: 3px solid #4a6414; outline-offset: 3px; }
     .emoji-message { color: #8e2815; font-weight: 700; }
-    .emoji-selection { color: #603112; font-weight: 800; margin: .7rem 0; }
-    .emoji-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
-    .emoji-actions button { min-height: 3rem; padding: .5rem 1rem; border: 2px solid #98501c;
-      border-radius: 999px; background: #fff0d4; color: #603112; font-family: inherit;
-      font-weight: 800; font-size: 1rem; cursor: pointer; }
-    .emoji-actions .emoji-confirm { background: #63750c; border-color: #4e5f08; color: #fff0d4; }
-    .emoji-actions button:disabled { opacity: .5; cursor: not-allowed; }
-    .emoji-actions button:focus-visible { outline: 3px solid #4a6414; outline-offset: 3px; }
     em-emoji-picker { max-width: 100%; --rgb-accent: 113, 134, 21; }
     """,
     js=_BUNDLE.read_text(encoding="utf-8"),

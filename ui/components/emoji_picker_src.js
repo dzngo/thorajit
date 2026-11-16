@@ -17,44 +17,14 @@ export default function ({ parentElement, data: props, setStateValue }) {
   const holder = document.createElement("div");
   const normalize = (emoji) => emoji.normalize("NFC").replaceAll("\ufe0f", "");
   const takenEmoji = new Set((props.taken || []).map(normalize));
-  let draft = props.value || "";
   let observer;
   holder.hidden = true;
   root.append(button, message, holder);
   button.onclick = () => {
-    if (!holder.hidden) {
-      holder.querySelector(".emoji-cancel")?.click();
-      return;
-    }
     holder.hidden = !holder.hidden;
     button.setAttribute("aria-expanded", String(!holder.hidden));
+    if (holder.hidden) message.textContent = "";
     if (!holder.hidden && !holder.firstChild) {
-      const selection = document.createElement("p");
-      selection.className = "emoji-selection";
-      selection.setAttribute("aria-live", "polite");
-      const actions = document.createElement("div");
-      actions.className = "emoji-actions";
-      const confirm = document.createElement("button");
-      confirm.type = "button";
-      confirm.className = "emoji-confirm";
-      confirm.textContent = "Use this emoji";
-      const cancel = document.createElement("button");
-      cancel.type = "button";
-      cancel.className = "emoji-cancel";
-      cancel.textContent = "Cancel";
-      const updateSelection = () => {
-        selection.textContent = draft ? `Selected: ${draft}` : "Choose an emoji to continue.";
-        confirm.disabled = !draft || takenEmoji.has(normalize(draft));
-      };
-      confirm.onclick = () => setStateValue("value", draft);
-      cancel.onclick = () => {
-        draft = props.value || "";
-        message.textContent = "";
-        updateSelection();
-        holder.hidden = true;
-        button.setAttribute("aria-expanded", "false");
-        button.focus();
-      };
       const picker = new Picker({
         data,
         theme: "light",
@@ -66,13 +36,14 @@ export default function ({ parentElement, data: props, setStateValue }) {
             return;
           }
           message.textContent = "";
-          draft = item.native;
-          updateSelection();
+          holder.hidden = true;
+          button.setAttribute("aria-expanded", "false");
+          button.textContent = `${item.native}  Change emoji`;
+          button.focus();
+          setStateValue("value", item.native);
         },
       });
-      actions.append(confirm, cancel);
-      holder.append(picker, selection, actions);
-      updateSelection();
+      holder.append(picker);
       const shadow = picker.shadowRoot;
       if (shadow) {
         const style = document.createElement("style");

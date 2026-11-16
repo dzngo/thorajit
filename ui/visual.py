@@ -182,6 +182,15 @@ def apply_style() -> None:
       padding: .3rem .6rem; border-radius: .6rem; background: #603112; color: #fff1d8;
       font-size: .85rem; overflow-wrap: anywhere; box-shadow: 0 2px 5px #60311255; }}
     .guess-instruction {{ text-align: center; overflow-wrap: anywhere; }}
+    .story-answer-columns {{ display: flex; gap: .75rem; overflow-x: auto; padding: .2rem; }}
+    .story-answer-columns:focus-visible {{ outline: 3px solid #4a6414; outline-offset: 3px; }}
+    .story-answer-column {{ flex: 1 0 100%; min-width: 0; }}
+    .story-answer-columns.multiple .story-answer-column {{ flex-basis: calc(50% - .375rem); min-width: 13rem; }}
+    .story-answer {{ display: flex; flex-direction: column; gap: .3rem; min-height: 3.5rem;
+      margin-bottom: .5rem; padding: .75rem 1rem; border: 2px solid #a56b32; border-radius: 18px;
+      background: #fff0d4; color: #603112; font-weight: 800; overflow-wrap: anywhere; }}
+    .story-answer.own {{ border-color: #718615; background: #e1e9a9; }}
+    .story-answer-label {{ color: #354300; font-size: .85rem; font-weight: 900; }}
     .stRadio [role="radiogroup"] {{ display: grid; grid-auto-flow: column; grid-template-rows: repeat(5, auto); grid-auto-columns: minmax(14rem, 1fr); overflow-x: auto; gap: .5rem; }}
     .stRadio [role="radiogroup"] label {{ background: #fff0d4; border: 2px solid #a56b32; border-radius: 18px; padding: .65rem; min-height: 3.5rem; }}
     .stRadio [role="radiogroup"] label p {{ font-size: 1rem; font-weight: 800; overflow-wrap: anywhere; }}
