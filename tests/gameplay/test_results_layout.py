@@ -37,6 +37,7 @@ class ResultsLayoutTests(unittest.TestCase):
         self.assertIn("aria-label='Certified Besties'", markup)
         self.assertIn('Scroll sideways to see all players', markup)
         self.assertEqual(markup.count('<details'), 2)
+        self.assertNotIn('<details class=\'wg-results-panel\' open>', markup)
         for title in ('Mind Reader', 'Wrong With Confident', 'Best Impostor', '404 Personality',
                       'No Incognito Mode', 'Group Telepathy Score', 'Certified Besties'):
             with self.subTest(title=title):

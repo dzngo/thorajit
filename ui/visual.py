@@ -39,7 +39,8 @@ def apply_style() -> None:
     [data-testid="stMainBlockContainer"] {{ max-width: 520px; padding: 1rem 1.2rem 4rem; }}
     .stApp, .stApp p, .stApp label, .stApp button, .stApp input, .stApp textarea {{ font-family: 'Nunito', sans-serif; color: #603112; }}
     .stApp h1, .stApp h2, .stApp h3 {{ font-family: 'Nunito', sans-serif; color: #603112; font-weight: 900; }}
-    .stApp h2 {{ background: #ffedcf; border-radius: 3rem; text-align: center; padding: .65rem 1rem; font-size: 2rem; line-height: 1.15; }}
+    .stApp h2 {{ background: #ffedcf; border-radius: 3rem; text-align: center; padding: .65rem 1rem;
+      margin-bottom: .65rem; font-size: 2rem; line-height: 1.15; }}
     .stApp h3 {{ font-size: 1.35rem; }}
     [data-testid="stImage"] {{ margin: auto; }}
     [data-testid="stCaptionContainer"] p {{ color: #6b492d; }}
@@ -56,7 +57,11 @@ def apply_style() -> None:
     [data-baseweb="input"], [data-baseweb="textarea"], [data-baseweb="select"] > div {{ background: #fff0d9 !important; border: 2px solid #a05f26 !important; border-radius: 24px !important; }}
     [data-baseweb="input"] input, [data-baseweb="textarea"] textarea {{ color: #603112 !important; }}
     [data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea {{ background: #fff0d9 !important; border: 0 !important; border-radius: 22px !important; min-height: 3rem; padding: .7rem 1rem; }}
-    [data-testid="stTextArea"] textarea:disabled {{ color: #603112 !important; -webkit-text-fill-color: #603112; opacity: 1; }}
+    [class*="st-key-card_answer_"] textarea:focus-visible {{ outline: none; }}
+    [class*="st-key-card_answer_"] [data-testid="stTextAreaRootElement"] {{
+      border: 2px solid #a05f26 !important; border-radius: 24px; }}
+    [class*="st-key-card_answer_"] [data-testid="stTextAreaRootElement"]:focus-within {{
+      border-color: #78451f !important; box-shadow: 0 0 0 2px #e0b878; }}
     [data-testid="stAlert"] {{ border-radius: 22px; background: #fff0d4; color: #603112; }}
     [data-testid="stExpander"] {{ background: #fff0d4aa; border: 1px solid #a36b32; border-radius: 20px; }}
     /* The welcome screen is a game cover: larger actions and a softer title panel. */
@@ -116,6 +121,18 @@ def apply_style() -> None:
       padding: 2rem 1.4rem; margin: .5rem 0 1rem; text-align: center; overflow-wrap: anywhere;
       color: #603112; font-size: clamp(1.45rem, 5vw, 2rem); line-height: 1.2; font-weight: 900;
       box-shadow: 0 5px 0 #957a4b33; }}
+    .st-key-question_setup {{ background: #fff0d4; border: 2px solid #f6e2bd; border-radius: 999px;
+      padding: .45rem .55rem .45rem 1rem; box-shadow: 0 5px 0 #957a4b33; }}
+    .st-key-question_setup [data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap !important; }}
+    .st-key-question_setup [data-testid="stColumn"] {{ min-width: 0 !important; }}
+    .st-key-question_setup [data-testid="stColumn"]:last-child {{ min-width: 5.5rem !important; }}
+    .question-setup-text {{ display: flex; align-items: center; gap: .65rem; min-width: 0;
+      color: #603112; font-size: clamp(1rem, 3.6vw, 1.2rem); font-weight: 900; line-height: 1.2;
+      overflow-wrap: anywhere; }}
+    .st-key-question_setup div.stButton button {{ min-height: 2.6rem; padding: .4rem .65rem;
+      background: #dce5a6; border: 0; color: #354300; box-shadow: none; }}
+    .st-key-question_setup div.stButton button p {{ font-size: 1rem; }}
+    .st-key-question_setup div.stButton button:hover {{ background: #cbd889; color: #354300; }}
     .st-key-saved_question_grid [data-testid="stHorizontalBlock"] {{ overflow-x: auto; flex-wrap: nowrap; }}
     .st-key-saved_question_grid [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{ min-width: min(17rem, 85vw); }}
     [class*="_saved_use_"] div.stButton > button[kind="primary"] {{ background: #63750c; border-color: #4e5f08; box-shadow: 0 5px 0 #4d5c09; }}
@@ -157,12 +174,12 @@ def apply_style() -> None:
       border-bottom: 1px solid #dec49a; overflow-wrap: anywhere; }}
     .player-row span {{ min-width: 0; }}
     .player-row strong {{ white-space: nowrap; }}
-    .vote-card {{ position: relative; display: flex; flex-direction: column; border: 2px solid #98501c; border-radius: 22px; margin: 1rem 0 1.5rem; background: #fff0d5; min-height: 5.8rem; overflow: visible; }}
+    .vote-card {{ position: relative; display: flex; flex-direction: column; border: 2px solid #98501c; border-radius: 22px; margin: .8rem 0 1.1rem; background: #fff0d5; min-height: 3.75rem; overflow: visible; }}
     .vote-card.correct {{ border-color: #718615; }}
     .vote-background {{ position: absolute; inset: 0; border-radius: 19px; overflow: hidden; }}
     .vote-fill {{ position: absolute; inset: 0 auto 0 0; width: var(--share); background: #eec88b; opacity: .7; }}
     .vote-card.correct .vote-fill {{ background: #cbdc88; }}
-    .vote-content {{ position: relative; flex: 1; padding: .85rem 1rem 1.2rem; display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-size: 1.1rem; font-weight: 900; }}
+    .vote-content {{ position: relative; flex: 1; padding: .65rem 1rem .8rem; display: flex; justify-content: space-between; align-items: center; gap: .5rem; font-size: 1.1rem; font-weight: 900; }}
     .vote-author, .vote-correct {{ position: absolute; color: white; border: 2px solid #fff0d5; border-radius: 999px; background: #94501d; padding: .1rem .65rem; font-weight: 800; font-size: .8rem; }}
     .vote-author {{ position: relative; align-self: flex-start; max-width: calc(100% - 1.4rem);
       margin: 0 .7rem -.8rem; overflow-wrap: anywhere; }}
@@ -186,7 +203,7 @@ def apply_style() -> None:
     .story-answer-columns:focus-visible {{ outline: 3px solid #4a6414; outline-offset: 3px; }}
     .story-answer-column {{ flex: 1 0 100%; min-width: 0; }}
     .story-answer-columns.multiple .story-answer-column {{ flex-basis: calc(50% - .375rem); min-width: 13rem; }}
-    .story-answer {{ display: flex; flex-direction: column; gap: .3rem; min-height: 3.5rem;
+    .story-answer {{ display: flex; flex-direction: column; gap: .3rem;
       margin-bottom: .5rem; padding: .75rem 1rem; border: 2px solid #a56b32; border-radius: 18px;
       background: #fff0d4; color: #603112; font-weight: 800; overflow-wrap: anywhere; }}
     .story-answer.own {{ border-color: #718615; background: #e1e9a9; }}

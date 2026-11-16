@@ -101,6 +101,7 @@ with patch('ui.routing.RoomService', return_value=rooms), \\
             self.assertIn('The reveal', [header.value for header in storyteller.header])
             self.assertFalse(RoomRepository(path).get_by_code(code).game_state['round_summary']['winners'])
             storyteller.button(key=f'{code}_next_turn_action').click().run()
+            listener.run().button(key=f'{code}_next_turn_action').click().run()
 
             second_storyteller, second_listener = listener, storyteller
             second_storyteller.run()
@@ -116,6 +117,8 @@ with patch('ui.routing.RoomService', return_value=rooms), \\
             summary = RoomRepository(path).get_by_code(code).game_state['round_summary']
             self.assertEqual(len(summary['winners']), 2)
             second_storyteller.button(key=f'{code}_view_results').click().run()
+            second_listener.run().button(key=f'{code}_view_results').click().run()
+            second_storyteller.run()
             self.assertFalse(second_storyteller.exception)
             self.assertIn('Final scoreboard', [header.value for header in second_storyteller.header])
 

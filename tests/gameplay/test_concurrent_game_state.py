@@ -22,6 +22,53 @@ class ConcurrentGameStateTests(unittest.TestCase):
         self.game.start_game(room)
         self.code = room.room_code
 
+    def test_simultaneous_reveal_readiness_advances_once(self):
+        room = self.repo.get_by_code(self.code)
+        state = copy.deepcopy(room.game_state)
+        state.update(phase='reveal', round_summary={'winners': [], 'points': 1})
+        self.game.set_state(room, state)
+        snapshots = [self.repo.get_by_code(self.code) for _ in room.players]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            list(pool.map(lambda pair: self.game.mark_reveal_ready(pair[0], pair[1].player_id),
+                          zip(snapshots, room.players)))
+        latest = self.repo.get_by_code(self.code)
+        self.assertEqual(latest.game_state['round'], 2)
+        self.assertEqual(latest.game_state['phase'], 'theme_selection')
+        self.assertEqual(latest.game_state['reveal_ready'], [])
+        with self.assertRaises(GameStateConflictError):
+            self.game.mark_reveal_ready(snapshots[0], room.players[0].player_id)
+
+    def test_unread_final_reveal_survives_return_to_lobby_and_new_game(self):
+        room = self.repo.get_by_code(self.code)
+        state = copy.deepcopy(room.game_state)
+        state.update(phase='reveal', round_summary={'winners': [room.host_id], 'points': 1})
+        self.game.set_state(room, state)
+        guest = next(player for player in room.players if player.player_id != room.host_id)
+        self.game.mark_reveal_ready(room, room.host_id)
+        held = copy.deepcopy(room.game_state['pending_reveals'][guest.player_id])
+        self.assertEqual(room.game_state['phase'], 'results')
+        self.game.end_game(room)
+        self.assertFalse(room.started)
+        self.assertEqual(room.game_state['pending_reveals'][guest.player_id], held)
+        self.game.start_game(room)
+        self.game.mark_reveal_ready(room, guest.player_id, held)
+        self.assertEqual(room.game_state['phase'], 'theme_selection')
+        self.assertNotIn(guest.player_id, room.game_state['pending_reveals'])
+
+    def test_non_host_storyteller_advances_and_late_host_keeps_reveal(self):
+        room = self.repo.get_by_code(self.code)
+        guest = next(player for player in room.players if player.player_id != room.host_id)
+        state = copy.deepcopy(room.game_state)
+        state.update(phase='reveal', storyteller_order=[guest.player_id, room.host_id], turn_index=0,
+                     round_summary={'winners': [], 'points': 1})
+        self.game.set_state(room, state)
+        self.game.mark_reveal_ready(room, guest.player_id)
+        self.assertEqual(room.game_state['phase'], 'theme_selection')
+        self.assertIn(room.host_id, room.game_state['pending_reveals'])
+        held = room.game_state['pending_reveals'][room.host_id]
+        self.game.mark_reveal_ready(room, room.host_id, held)
+        self.assertNotIn(room.host_id, room.game_state['pending_reveals'])
+
     def test_start_from_stale_lobby_keeps_newly_joined_player(self):
         room = self.rooms.create_room('Other host', 'Other room', RoomSettings(), is_private=False, emoji='🌼')
         self.rooms.add_player(room, 'First guest', emoji='🐱')

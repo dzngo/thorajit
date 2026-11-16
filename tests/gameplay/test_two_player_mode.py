@@ -52,7 +52,7 @@ class TwoPlayerTests(unittest.TestCase):
             with self.subTest(players=players, custom=custom):
                 room = SimpleNamespace(room_code='TEST', players=[SimpleNamespace(player_id=str(i)) for i in range(players)],
                                        settings=RoomSettings(max_score=target, max_score_customized=custom),
-                                       update_timestamp=Mock(), started=False)
+                                       update_timestamp=Mock(), started=False, game_state={})
                 service = Mock()
                 service.repository.update.side_effect = lambda _code, operation: (room, operation(room))
                 GameService(service).start_game(room)

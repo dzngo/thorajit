@@ -25,7 +25,7 @@ class RevealUITests(unittest.TestCase):
         self.assertIn('aria-label="Bea voted for this answer"', result)
         self.assertIn('<span class="vote-voter-name">Bea</span>', result)
         self.assertIn('✓ Correct', result)
-        self.assertIn('vote-author">Alex', result)
+        self.assertIn('vote-author">😀 Alex', result)
 
     @patch('ui.game_flow.st')
     def test_no_guesses_and_many_choices(self, st):
@@ -53,10 +53,9 @@ class RevealUITests(unittest.TestCase):
         self.assertIn('Guessed by Player 1, Player 2. 2 of 7 guesses.', first_card)
         self.assertIn('🐸', first_card)
         self.assertIn('🐱', first_card)
-        self.assertNotIn('😀', first_card)
-        self.assertIn('vote-author">Player 0', first_card)
+        self.assertIn('vote-author">😀 Player 0', first_card)
         self.assertIn('✓ Correct', first_card)
-        self.assertIn('vote-author">Player 5', columns[1])
+        self.assertIn('vote-author">🦊 Player 5', columns[1])
 
     @patch('ui.game_flow.visual.question_card')
     @patch('ui.game_flow.st')
@@ -78,24 +77,29 @@ class RevealUITests(unittest.TestCase):
         self.assertIn('A &lt; B', cards)
         self.assertIn('Alex (Storyteller)', cards)
         self.assertIn('Bea (Listener)', cards)
+        self.assertIn('😀 Alex (Storyteller)', cards)
+        self.assertIn('🐸 Bea (Listener)', cards)
         show_scores.assert_called_once_with(players, {'a': 0, 'b': 3}, prefix='+')
         decision.assert_called_once_with(True)
 
     @patch('ui.game_flow.visual.question_card')
     @patch('ui.game_flow.st')
-    def test_two_player_listener_waits_without_advance_button(self, st, question_card):
+    def test_two_player_listener_can_mark_ready_then_wait(self, st, question_card):
         st.container.return_value = MagicMock()
+        st.button.return_value = False
         flow = GameFlow(Mock(), Mock(), Mock())
         flow._render_save_question = Mock()
-        room = SimpleNamespace(players=[SimpleNamespace(player_id='a', name='Alex'),
+        room = SimpleNamespace(room_code='TEST', players=[SimpleNamespace(player_id='a', name='Alex'),
                                         SimpleNamespace(player_id='b', name='Bea')])
         state = {'question': {'question': 'Question?'}, 'selected_level': 'shallow',
                  'answer_submissions': {'a': 'Story answer', 'b': 'Listener answer'},
                  'round_summary': {'listener_id': 'b', 'points': 1, 'correct': True}}
         with patch('ui.game_flow.visual.waiting_card') as waiting:
             flow._render_two_player_reveal(room, state, 'a', 'b', False)
-        waiting.assert_called_once_with('Waiting for the next turn…', '')
-        st.button.assert_not_called()
+            st.button.assert_called_once()
+            state['reveal_ready'] = ['b']
+            flow._render_two_player_reveal(room, state, 'a', 'b', False)
+        waiting.assert_called_once_with('Waiting for the next turn…', 'Waiting for the host or Storyteller to continue.')
 
     @patch('ui.game_flow.visual.question_card')
     @patch('ui.game_flow.st')

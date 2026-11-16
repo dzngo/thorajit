@@ -56,7 +56,10 @@ class GameFlow:
         if not room:
             st.warning("Room no longer exists.")
             return
-        if not room.started or not room.game_state:
+        profile = st.session_state.get("player_profile", {})
+        current_player_id = profile.get("player_id")
+        held_reveal = (room.game_state or {}).get("pending_reveals", {}).get(current_player_id)
+        if (not room.started or not room.game_state) and not held_reveal:
             st.info("Waiting for the host to start the game...")
             if st.button("Back to entry"):
                 st.session_state["route"] = "entry"
@@ -68,10 +71,11 @@ class GameFlow:
             st.info("Initializing game state…")
             return
 
-        self._flush_events(room, state)
-        profile = st.session_state.get("player_profile", {})
-        current_player_id = profile.get("player_id")
+        if room.started:
+            self._flush_events(room, state)
         current_player_name = profile.get("name")
+        if held_reveal:
+            state = copy.deepcopy(held_reveal)
         is_host = current_player_id == room.host_id
         storyteller_id = self._current_storyteller_id(state)
         storyteller = self._player_lookup(room).get(storyteller_id)
@@ -101,7 +105,7 @@ class GameFlow:
                 state,
                 storyteller,
                 current_player_name,
-                is_host,
+                is_host and not held_reveal,
                 is_storyteller,
             )
 
@@ -122,9 +126,9 @@ class GameFlow:
             self._render_guess_phase(room, state, storyteller_id, current_player_id, is_host)
         elif phase == "reveal":
             if state.get("game_mode") == "two_player":
-                self._render_two_player_reveal(room, state, storyteller_id, current_player_id, is_host)
+                self._render_two_player_reveal(room, state, storyteller_id, current_player_id, is_host, held=bool(held_reveal))
             else:
-                self._render_reveal_phase(room, state, storyteller_id, current_player_id, is_host)
+                self._render_reveal_phase(room, state, storyteller_id, current_player_id, is_host, held=bool(held_reveal))
         elif phase == "results":
             self._render_results(room, state, is_host)
         else:
@@ -328,9 +332,15 @@ class GameFlow:
         current_theme = self._current_theme(state)
         current_level = self._current_level_value(state)
         question_data = state.get("question") or {}
-        setup, change = st.columns([3, 1], vertical_alignment="center")
-        setup.write(f"**{current_theme} · {current_level.title()}**")
-        change_theme_clicked = change.button("Change", key=f"{room.room_code}_question_change_theme", width="stretch")
+        with st.container(key="question_setup"):
+            setup, change = st.columns([3, 1.35], gap="small", vertical_alignment="center")
+            setup.html(
+                '<div class="question-setup-text">'
+                f'<span>{html.escape(current_theme)} · {html.escape(current_level.title())}</span></div>'
+            )
+            change_theme_clicked = change.button(
+                "Change", key=f"{room.room_code}_question_change_theme", width="stretch"
+            )
         manual_key = f"{room.room_code}_question_text"
         prefill_key = f"{manual_key}_prefill"
         editing_key = f"{manual_key}_editing"
@@ -493,8 +503,11 @@ class GameFlow:
             else:
                 st.write("Submit one plausible answer. Do not reveal whether it is yours.")
 
-        with st.container(border=True, key=f"card_answer_{room.room_code}"):
-            st.text_area("Your answer", key=input_key, disabled=not is_editing, placeholder="Type your answer")
+        if is_editing:
+            with st.container(border=True, key=f"card_answer_{room.room_code}"):
+                st.text_area("Your answer", key=input_key, placeholder="Type your answer")
+        else:
+            visual.answer_card("Your answer", submitted)
 
         if not is_editing:
             if st.button("Modify", key=f"{room.room_code}_modify_answer_{current_player_id}",
@@ -658,12 +671,13 @@ class GameFlow:
 
     def _render_two_player_reveal(
         self, room: Room, state: Dict[str, object], storyteller_id: Optional[str],
-        current_player_id: Optional[str], is_host: bool,
+        current_player_id: Optional[str], is_host: bool, *, held: bool = False,
     ) -> None:
         st.header("The reveal")
         question = (state.get("question") or {}).get("question", "")
         visual.question_card(question)
-        self._render_save_question(room, state, storyteller_id, current_player_id)
+        if not held:
+            self._render_save_question(room, state, storyteller_id, current_player_id)
         summary = state.get("round_summary") or {}
         if not summary:
             st.warning("This round has not been judged.")
@@ -676,7 +690,8 @@ class GameFlow:
                                         (listener, summary.get("listener_id"), "Listener")):
             name = player.name if player else role
             answer = html.escape(str(answers.get(player_id, "")))
-            author = html.escape(f"{name} ({role})")
+            emoji = (getattr(player, "emoji", "") or "") if player else ""
+            author = html.escape(f"{emoji} {name} ({role})".strip())
             card_class = "vote-card correct" if role == "Storyteller" else "vote-card"
             st.html(f'<div class="{card_class}"><div class="vote-content">{answer}</div>'
                     f'<span class="vote-author">{author}</span></div>')
@@ -691,25 +706,7 @@ class GameFlow:
             st.caption(f"{self._current_level_value(state).title()} level")
         if summary.get("winners"):
             st.success("Game complete! Both players have had the same number of Listener turns.")
-            if ((current_player_id == storyteller_id) or is_host) and st.button(
-                "View final results", key=f"{room.room_code}_view_results", type="primary", width="stretch"
-            ):
-                state["phase"] = "results"
-                state["winners"] = summary["winners"]
-                state["end_reason"] = f"Target score of {state['max_score']} reached after equal Listener turns."
-                self._save_state(room, state)
-            elif current_player_id != storyteller_id and not is_host:
-                visual.waiting_card("Waiting for the final results…", "")
-            return
-        if (current_player_id == storyteller_id) or is_host:
-            if st.button("Next turn", key=f"{room.room_code}_next_turn_action", type="primary", width="stretch"):
-                try:
-                    self.game_service.prepare_next_turn(room, advance_round=True)
-                except GameStateConflictError:
-                    st.warning("The game already changed. Refreshing to the current turn.")
-                common.rerun()
-        else:
-            visual.waiting_card("Waiting for the next turn…", "")
+        self._render_reveal_ready(room, state, current_player_id, bool(summary.get("winners")))
 
     def _render_guess_phase(
         self,
@@ -822,12 +819,13 @@ class GameFlow:
         state: Dict[str, object],
         storyteller_id: Optional[str],
         current_player_id: Optional[str],
-        is_host: bool,
+        is_host: bool, *, held: bool = False,
     ) -> None:
         st.header("The reveal")
         question = (state.get("question") or {}).get("question", "")
         visual.question_card(question)
-        self._render_save_question(room, state, storyteller_id, current_player_id)
+        if not held:
+            self._render_save_question(room, state, storyteller_id, current_player_id)
 
         options = (state.get("multiple_choice") or {}).get("options", [])
         lookup = self._player_lookup(room)
@@ -849,29 +847,26 @@ class GameFlow:
 
         if summary.get("winners"):
             st.success("We have a winner!")
-            if ((current_player_id == storyteller_id) or is_host) and st.button(
-                "View final results", key=f"{room.room_code}_view_results", type="primary", width="stretch"
-            ):
-                state["phase"] = "results"
-                state["winners"] = summary["winners"]
-                state["end_reason"] = (
-                    f"Game ended because at least one player reached the target score "
-                    f"of {room.settings.max_score}."
-                )
-                self._save_state(room, state)
-            elif current_player_id != storyteller_id and not is_host:
-                visual.waiting_card("Waiting for the final results…", "")
-            return
+        self._render_reveal_ready(room, state, current_player_id, bool(summary.get("winners")))
 
-        if (current_player_id == storyteller_id) or is_host:
-            if st.button("Next turn", key=f"{room.room_code}_next_turn_action", type="primary", width="stretch"):
-                try:
-                    self.game_service.prepare_next_turn(room, advance_round=True)
-                except GameStateConflictError:
-                    st.warning("The game already changed. Refreshing to the current turn.")
-                common.rerun()
-        else:
-            visual.waiting_card("Waiting for the next turn…", "")
+    def _render_reveal_ready(self, room: Room, state: Dict[str, object], player_id: Optional[str], final: bool) -> None:
+        players = {player.player_id for player in room.players}
+        if player_id not in players:
+            st.warning("Your player session is unavailable. Return to the room and resume your player.")
+            return
+        ready = set(state.get("reveal_ready") or []) & players
+        if player_id in ready:
+            detail = "Waiting for the host or Storyteller to continue."
+            visual.waiting_card("Waiting for the final results…" if final else "Waiting for the next turn…", detail)
+            return
+        label = "View final results" if final else "Next turn"
+        key = f"{room.room_code}_view_results" if final else f"{room.room_code}_next_turn_action"
+        if st.button(label, key=key, type="primary", width="stretch"):
+            try:
+                self.game_service.mark_reveal_ready(room, player_id, state)
+            except GameStateConflictError:
+                st.warning("The game changed. Refreshing the current view.")
+            common.rerun()
 
     @staticmethod
     def _render_reveal_choices(options, guesses, lookup) -> None:
@@ -884,7 +879,7 @@ class GameFlow:
             label = option.get("label")
             voters = [lookup[pid] for pid, guess in valid.items() if guess.get("label") == label]
             owner = lookup.get(option.get("owner_id"))
-            author = html.escape(owner.name if owner else "Unknown")
+            author = html.escape(f"{getattr(owner, 'emoji', '') or ''} {owner.name if owner else 'Unknown'}".strip())
             text = html.escape(str(option.get("text", "")))
             correct = option.get("kind") == "true"
             share = (100 * len(voters) / len(valid)) if valid else 0
@@ -1285,12 +1280,12 @@ class GameFlow:
         cue = "<div class='wg-results-stat-subtitle'>Scroll sideways to see all players →</div>" if len(groups) > 1 else ""
         bestie_class = "wg-results-bestie-columns multiple" if len(groups) > 1 else "wg-results-bestie-columns"
         return (
-            "<details class='wg-results-panel' open>"
+            "<details class='wg-results-panel'>"
             "<summary class='wg-results-section-title'>✨ Game highlights</summary>"
             f"{empty_notice}"
             f"<div class='wg-results-stat-grid'>{cards_html}</div>"
             "</details>"
-            "<details class='wg-results-panel' open>"
+            "<details class='wg-results-panel'>"
             "<summary class='wg-results-section-title'>🤝 Certified Besties</summary>"
             "<div class='wg-results-stat-subtitle'>Who understood each player best</div>"
             f"{cue}<div class='{bestie_class}' role='region' tabindex='0' aria-label='Certified Besties'>"
