@@ -8,7 +8,9 @@ from textwrap import dedent
 from services.game_service import GameService
 from services.llm_service import LLMService
 from services.room_service import RoomService
+from storage.room_repository import RoomStorageError
 from ui import common
+from ui import visual
 from ui.game_flow import GameFlow
 from ui.host_flow import HostFlow
 from ui.join_flow import JoinFlow
@@ -73,9 +75,8 @@ class Router:
         if "route" not in st.session_state:
             st.session_state["route"] = "entry"
         route = st.session_state["route"]
-        title = "Who Gets You? 🎭 "
-        st.title(title)
-        common.style_buttons()
+        visual.apply_style()
+        visual.render_brand()
         if route == "entry":
             self._render_entry()
         elif route == "host":
@@ -90,25 +91,16 @@ class Router:
             common.rerun()
 
     def _render_entry(self) -> None:
-        st.subheader("Welcome")
-        st.write("Start by choosing whether you want to host a room or join an existing game.")
-        col1, col2 = st.columns(2)
-        if col1.button("Create room", key="entry_create"):
-            st.session_state["route"] = "host"
-            common.rerun()
-        if col2.button("Join room", key="entry_join"):
-            st.session_state["route"] = "join"
-            common.rerun()
-        show_rules = st.session_state.get("show_rules_panel", False)
-        if st.button("View game rules", key="entry_rules"):
-            show_rules = True
-            st.session_state["show_rules_panel"] = True
-        if show_rules:
-            with st.expander("Game rules", expanded=True):
+        with st.container(key="welcome"):
+            st.header("How well do you know each other?")
+            if st.button("Create room", key="entry_create", type="primary", width="stretch"):
+                st.session_state["route"] = "host"
+                common.rerun()
+            if st.button("Join room", key="entry_join", width="stretch"):
+                st.session_state["route"] = "join"
+                common.rerun()
+            with st.expander("How to play"):
                 st.markdown(self.RULES_SUMMARY)
-                if st.button("Hide rules", key="entry_hide_rules"):
-                    st.session_state["show_rules_panel"] = False
-                    common.rerun()
 
     def _ensure_game_llm(self) -> None:
         room_code = st.session_state.get("active_room_code")
@@ -118,11 +110,17 @@ class Router:
         if not room:
             return
         target_model = getattr(room.settings, "llm_model", None) or "gpt-4o-mini"
-        current_model = getattr(getattr(self.game_flow.llm_service, "_llm", None), "selection_name", None)
+        current_model = getattr(self.game_flow.llm_service, "selection_name", None)
         if current_model == target_model.lower():
             return
         self.game_flow.llm_service = LLMService(llm_name=target_model)
 
 
 def run() -> None:
-    Router().render()
+    try:
+        Router().render()
+    except RoomStorageError:
+        st.error("We couldn't load or save the room. Check your connection and try again. "
+                 "Your latest action may not have finished.")
+        if st.button("Retry", key="room_storage_retry", width="stretch"):
+            common.rerun()

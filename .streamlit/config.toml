@@ -1,0 +1,16 @@
+[client]
+toolbarMode = "viewer"
+
+[theme]
+base = "light"
+primaryColor = "#78891B"
+backgroundColor = "#FFF3DC"
+secondaryBackgroundColor = "#F6E6C8"
+textColor = "#603112"
+borderColor = "#A56B32"
+font = "sans-serif"
+headingFont = "sans-serif"
+baseRadius = "large"
+buttonRadius = "full"
+showWidgetBorder = true
+paddingTop = "2rem"

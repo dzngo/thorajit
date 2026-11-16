@@ -17,6 +17,10 @@ def _player_scores(players: List[Player]) -> Dict[str, int]:
     return {player.player_id: 0 for player in players}
 
 
+class GameStateConflictError(Exception):
+    """The game changed since this player loaded their current view."""
+
+
 class GameService:
     """Keeps track of game state stored with the room."""
 
@@ -24,31 +28,59 @@ class GameService:
         self.room_service = room_service
 
     def start_game(self, room: Room) -> Room:
-        if len(room.players) < 2:
-            raise ValueError("At least two players are required to start the game.")
-        if not room.settings.max_score_customized:
-            room.settings.max_score = 10 if len(room.players) == 2 else 100
-        order = [player.player_id for player in room.players]
-        random.shuffle(order)
-        room.started = True
-        room.game_state = self._build_initial_state(room, order)
-        room.update_timestamp()
-        self.room_service.repository.save(room)
+        def start(latest: Room) -> None:
+            if latest.started:
+                raise ValueError("This game has already started.")
+            if len(latest.players) < 2:
+                raise ValueError("At least two players are required to start the game.")
+            if not latest.settings.max_score_customized:
+                latest.settings.max_score = 10 if len(latest.players) == 2 else 100
+            order = [player.player_id for player in latest.players]
+            random.shuffle(order)
+            latest.started = True
+            latest.game_state = self._build_initial_state(latest, order)
+            latest.update_timestamp()
+
+        try:
+            latest, _ = self.room_service.repository.update(room.room_code, start)
+        except KeyError as exc:
+            raise ValueError("This room is no longer available.") from exc
+        room.__dict__.update(latest.__dict__)
         return room
 
     def set_state(self, room: Room, state: Dict[str, Any]) -> Room:
-        room.game_state = copy.deepcopy(state)
-        room.update_timestamp()
-        self.room_service.repository.save(room)
+        expected = copy.deepcopy(room.game_state)
+
+        def apply(latest: Room) -> None:
+            if not latest.started or latest.game_state != expected:
+                raise GameStateConflictError("The game changed while you were making that choice.")
+            latest.game_state = copy.deepcopy(state)
+            latest.update_timestamp()
+
+        try:
+            latest, _ = self.room_service.repository.update(room.room_code, apply)
+        except KeyError as exc:
+            raise GameStateConflictError("The room is no longer available.") from exc
+        room.__dict__.update(latest.__dict__)
         return room
 
     def end_game(self, room: Room) -> Room:
-        if (room.game_state or {}).get("question_events_pending"):
-            raise RuntimeError("Question statistics are still pending; retry before leaving the game.")
-        room.started = False
-        room.game_state = {}
-        room.update_timestamp()
-        self.room_service.repository.save(room)
+        expected = copy.deepcopy(room.game_state)
+
+        def end(latest: Room) -> None:
+            if not latest.started or latest.game_state != expected:
+                raise GameStateConflictError("The game changed before the lobby was reopened.")
+            if (latest.game_state or {}).get("question_events_pending"):
+                raise RuntimeError("Question statistics are still pending; retry before leaving the game.")
+            latest.started = False
+            latest.game_state = {}
+            latest.update_timestamp()
+
+        try:
+            latest, _ = self.room_service.repository.update(room.room_code, end)
+        except KeyError as exc:
+            raise GameStateConflictError("The room is no longer available.") from exc
+        room.__dict__.update(latest.__dict__)
         return room
 
     def _build_initial_state(self, room: Room, order: List[str]) -> Dict[str, Any]:
