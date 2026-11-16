@@ -882,10 +882,12 @@ class GameFlow:
             author = html.escape(f"{getattr(owner, 'emoji', '') or ''} {owner.name if owner else 'Unknown'}".strip())
             text = html.escape(str(option.get("text", "")))
             correct = option.get("kind") == "true"
+            thorajit = correct and len(voters) == 1
             share = (100 * len(voters) / len(valid)) if valid else 0
             names = ", ".join(player.name for player in voters) or "nobody"
             description = html.escape(f"{option.get('text', '')}. Written by {owner.name if owner else 'Unknown'}. "
-                                      f"Guessed by {names}. {len(voters)} of {len(valid)} guesses.", quote=True)
+                                      f"Guessed by {names}. {len(voters)} of {len(valid)} guesses."
+                                      f"{' Thorajit! Exactly one Listener guessed correctly.' if thorajit else ''}", quote=True)
             # Keep the compact emoji-first design while making the voter identity
             # available on touch and keyboard as well as to screen readers.
             voter_html = "".join(
@@ -894,10 +896,13 @@ class GameFlow:
                 f'<span class="vote-voter-name">{html.escape(player.name)}</span></details>'
                 for player in voters
             )
-            cards.append(f'''<div class="vote-card{' correct' if correct else ''}" role="group" aria-label="{description}">
+            badge = ('<span class="vote-correct">✦ Thorajit!</span>' if thorajit else
+                     '<span class="vote-correct">✓ Correct</span>' if correct else '')
+            decoration = visual.thorajit_decoration() if thorajit else ''
+            cards.append(f'''<div class="vote-card{' correct' if correct else ''}{' thor-moment' if thorajit else ''}" role="group" aria-label="{description}">
                 <div class="vote-background" aria-hidden="true"><div class="vote-fill" style="--share:{share:.2f}%"></div></div>
                 <div class="vote-content"><span>{text}</span><div class="vote-voters">{voter_html}</div></div>
-                <span class="vote-author">{author}</span>{'<span class="vote-correct">✓ Correct</span>' if correct else ''}
+                <span class="vote-author">{author}</span>{badge}{decoration}
                 </div>''')
         columns = [cards[index:index + 5] for index in range(0, len(cards), 5)]
         content = "".join(f'<div class="vote-column">{"".join(column)}</div>' for column in columns)

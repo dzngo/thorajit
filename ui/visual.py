@@ -185,7 +185,27 @@ def apply_style() -> None:
       margin: 0 .7rem -.8rem; overflow-wrap: anywhere; }}
     .correct .vote-author, .vote-correct {{ background: #63750c; }}
     .vote-correct {{ right: .5rem; top: -.8rem; }}
+    .thor-moment-shape {{ position: absolute; z-index: 1; top: -1.7rem; width: 2.2rem; height: 2.2rem;
+      border-radius: 38% 55% 43% 55%; opacity: 0; pointer-events: none; }}
+    .thor-moment-shape.green {{ left: calc(50% - 2rem); background: #a0ac59; }}
+    .thor-moment-shape.gold {{ left: 50%; background: #e7a444; mix-blend-mode: multiply; }}
+    .thor-moment-spark {{ position: absolute; z-index: 1; top: -.7rem; color: #b7883e;
+      font-size: .8rem; opacity: 0; pointer-events: none; }}
+    .thor-moment-spark.left {{ left: calc(50% - 2.7rem); }}
+    .thor-moment-spark.right {{ left: calc(50% + 2.1rem); }}
+    .thor-moment .thor-moment-shape {{ animation: thor-shape 1.5s ease-out both; }}
+    .thor-moment .thor-moment-spark {{ animation: thor-spark 1.5s ease-out both; }}
+    .thor-moment-shape.green {{ --thor-start: -1rem; --thor-end: .35rem; }}
+    .thor-moment-shape.gold {{ --thor-start: 1rem; --thor-end: -.35rem; }}
+    @keyframes thor-shape {{ 0% {{ opacity: 0; transform: translateX(var(--thor-start)) scale(.7) rotate(-10deg); }}
+      35% {{ opacity: .75; }} 65% {{ opacity: .75; transform: translateX(var(--thor-end)) scale(1) rotate(8deg); }}
+      100% {{ opacity: 0; transform: translateX(var(--thor-end)) scale(.85) rotate(8deg); }} }}
+    @keyframes thor-spark {{ 0%, 25% {{ opacity: 0; transform: scale(.5); }}
+      50% {{ opacity: .85; }} 100% {{ opacity: 0; transform: translateY(-.8rem) scale(1.1); }} }}
+    @media (prefers-reduced-motion: reduce) {{ .thor-moment .thor-moment-shape,
+      .thor-moment .thor-moment-spark {{ animation: none; opacity: 0; }} }}
     .vote-columns {{ display: flex; gap: 1rem; overflow-x: auto; padding: .5rem .1rem 1rem; }}
+    .vote-columns:has(.thor-moment) {{ padding-top: 1.8rem; }}
     .vote-columns:focus-visible, .results-rank-columns:focus-visible {{ outline: 3px solid #4a6414; outline-offset: 3px; }}
     .vote-column {{ flex: 1 0 100%; min-width: 0; }}
     .vote-columns.multiple .vote-column {{ flex-basis: calc(50% - .5rem); min-width: 13rem; }}
@@ -271,6 +291,14 @@ def answer_card(label: str, answer: str) -> None:
     """Display a player's own submitted answer or guess as non-interactive content."""
     st.html(f'<div class="answer-summary"><div class="answer-summary-label">{html.escape(label)}</div>'
             f'<div class="answer-summary-value">{html.escape(str(answer))}</div></div>')
+
+
+def thorajit_decoration() -> str:
+    """Decorative shapes for the special single-correct-guess reveal."""
+    return ('<span class="thor-moment-shape green" aria-hidden="true"></span>'
+            '<span class="thor-moment-shape gold" aria-hidden="true"></span>'
+            '<span class="thor-moment-spark left" aria-hidden="true">✦</span>'
+            '<span class="thor-moment-spark right" aria-hidden="true">✦</span>')
 
 
 def decision_status(correct: bool) -> None:

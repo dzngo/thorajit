@@ -7,6 +7,24 @@ from ui.game_flow import GameFlow
 
 class RevealUITests(unittest.TestCase):
     @patch('ui.game_flow.st')
+    def test_thorajit_only_for_one_correct_listener(self, st):
+        options = [{'label': 'A', 'text': 'Coffee', 'owner_id': 'a', 'kind': 'true'},
+                   {'label': 'B', 'text': 'Tea', 'owner_id': 'b', 'kind': 'listener'}]
+        players = {'a': SimpleNamespace(name='Alex', emoji='😀'),
+                   'b': SimpleNamespace(name='Bea', emoji='🐱'),
+                   'c': SimpleNamespace(name='Cee', emoji='🐸')}
+        cases = [({}, False), ({'b': {'label': 'B'}}, False),
+                 ({'b': {'label': 'A'}, 'c': {'label': 'B'}}, True),
+                 ({'b': {'label': 'A'}, 'c': {'label': 'A'}}, False)]
+        for guesses, special in cases:
+            with self.subTest(guesses=guesses):
+                GameFlow._render_reveal_choices(options, guesses, players)
+                markup = st.html.call_args.args[0]
+                self.assertEqual('✦ Thorajit!' in markup, special)
+                self.assertEqual('thor-moment-shape' in markup, special)
+                self.assertEqual('✓ Correct' in markup, not special)
+
+    @patch('ui.game_flow.st')
     def test_vote_fills_and_badges_follow_recorded_guesses(self, st):
         options = [
             {'label': 'A', 'text': 'A < B', 'owner_id': 'a', 'kind': 'true'},
