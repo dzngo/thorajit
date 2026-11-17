@@ -61,7 +61,8 @@ def apply_style() -> None:
     [class*="st-key-card_answer_"] [data-testid="stTextAreaRootElement"] {{
       border: 2px solid #a05f26 !important; border-radius: 24px; }}
     [class*="st-key-card_answer_"] [data-testid="stTextAreaRootElement"]:focus-within {{
-      border-color: #78451f !important; box-shadow: 0 0 0 2px #e0b878; }}
+      border-color: #78451f !important; box-shadow: none; }}
+    [class*="st-key-card_answer_"] [data-testid="InputInstructions"] {{ display: none; }}
     [data-testid="stAlert"] {{ border-radius: 22px; background: #fff0d4; color: #603112; }}
     [data-testid="stExpander"] {{ background: #fff0d4aa; border: 1px solid #a36b32; border-radius: 20px; }}
     /* The welcome screen is a game cover: larger actions and a softer title panel. */
@@ -235,6 +236,32 @@ def apply_style() -> None:
     [class*="_submit_guess_"] div.stButton > button[kind="primary"]:hover {{ background: #53640a; }}
     .stRadio [role="radiogroup"] label:has(input:checked) {{ background: #e1e9a9; border-color: #718615; }}
     .results-panels {{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .8rem; align-items: start; }}
+    .winner-announcement {{ position: relative; overflow: hidden; isolation: isolate; text-align: center;
+      background: #fff0d4; border: 2px solid #d7b86f; border-radius: 28px; padding: 2.2rem 1rem;
+      margin: 0 0 1rem; box-shadow: 0 5px 0 #957a4b33; }}
+    .winner-heading {{ position: relative; color: #603112; font-weight: 900; font-size: 1.1rem;
+      margin-bottom: .65rem; }}
+    .winner-list {{ position: relative; display: grid; grid-auto-flow: column; grid-template-rows: repeat(var(--winner-rows), auto);
+      grid-auto-columns: minmax(10rem, 1fr); gap: .4rem .75rem; overflow-x: auto; }}
+    .winner-list:focus-visible {{ outline: 3px solid #4a6414; outline-offset: 3px; }}
+    .winner-player {{ min-width: 0; overflow-wrap: anywhere; color: #603112; font-size: 1.4rem; font-weight: 900; }}
+    .winner-score {{ color: #6b492d; font-size: .9rem; font-weight: 800; }}
+    .unfold-shape {{ position: absolute; z-index: -1; top: -30%; width: 65%; height: 160%;
+      opacity: .48; pointer-events: none; }}
+    .unfold-shape.left {{ left: -37%; background: #9cae68; border-radius: 43% 58% 48% 40%;
+      transform: rotate(-14deg); }}
+    .unfold-shape.right {{ right: -39%; background: #dfad62; border-radius: 56% 42% 44% 54%;
+      transform: rotate(17deg); }}
+    .unfold-shape::after {{ content: ""; position: absolute; inset: 0; opacity: .22;
+      background: linear-gradient(145deg, transparent 40%, #705333 40% 58%, transparent 58%);
+      border-radius: inherit; }}
+    .winner-announcement .unfold-shape.left {{ animation: unfold-left 2.2s ease-out both; }}
+    .winner-announcement .unfold-shape.right {{ animation: unfold-right 2.2s ease-out both; }}
+    @keyframes unfold-left {{ from {{ opacity: 0; transform: translateX(-45%) rotate(-28deg) scale(.8); }}
+      to {{ opacity: .48; transform: translateX(0) rotate(-14deg) scale(1); }} }}
+    @keyframes unfold-right {{ from {{ opacity: 0; transform: translateX(45%) rotate(31deg) scale(.8); }}
+      to {{ opacity: .48; transform: translateX(0) rotate(17deg) scale(1); }} }}
+    @media (prefers-reduced-motion: reduce) {{ .winner-announcement .unfold-shape {{ animation: none; }} }}
     .results-ranking, .wg-results-panel {{ background: #fff0d4; border: 2px solid #9b5c24; border-radius: 22px; padding: 1rem; margin-bottom: .8rem; overflow-wrap: anywhere; }}
     .results-ranking h3, .wg-results-section-title {{ font-size: 1.15rem; font-weight: 900; margin: 0 0 .7rem; }}
     .results-rank-columns {{ display: flex; overflow-x: auto; gap: .7rem; }}
@@ -299,6 +326,21 @@ def thorajit_decoration() -> str:
             '<span class="thor-moment-shape gold" aria-hidden="true"></span>'
             '<span class="thor-moment-spark left" aria-hidden="true">✦</span>'
             '<span class="thor-moment-spark right" aria-hidden="true">✦</span>')
+
+
+def winner_announcement(players: list, scores: dict) -> None:
+    """Celebrate all winners, retaining their names and scores as readable text."""
+    heading = "It's a tie!" if len(players) > 1 else "We have a winner!"
+    rows = ''.join(
+        f'<div class="winner-player">{html.escape(getattr(player, "emoji", "") or "")} '
+        f'{html.escape(player.name)}<div class="winner-score">{html.escape(str(scores.get(player.player_id, 0)))} pts</div></div>'
+        for player in players
+    )
+    cue = '<div class="winner-score">Scroll sideways to see all winners →</div>' if len(players) > 5 else ''
+    st.html(f'''<section class="winner-announcement" role="status">
+      <span class="unfold-shape left" aria-hidden="true"></span><span class="unfold-shape right" aria-hidden="true"></span>
+      <div class="winner-heading">{heading}</div>{cue}
+      <div class="winner-list" style="--winner-rows:{min(len(players), 5)}" role="region" tabindex="0" aria-label="Winners">{rows}</div></section>''')
 
 
 def decision_status(correct: bool) -> None:

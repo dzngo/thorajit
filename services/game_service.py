@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import copy
 import random
+import uuid
 from typing import Any, Dict, List
 
 from models import (
     Player,
+    PlayerRole,
     Room,
 )
 from services.room_service import RoomService
@@ -21,11 +23,99 @@ class GameStateConflictError(Exception):
     """The game changed since this player loaded their current view."""
 
 
+class LeaveWouldEndGame(Exception):
+    """A fresh confirmation is needed because leaving would end the game."""
+
+
 class GameService:
     """Keeps track of game state stored with the room."""
 
     def __init__(self, room_service: RoomService) -> None:
         self.room_service = room_service
+
+    @staticmethod
+    def leaving_ends_game(room: Room) -> bool:
+        remaining = len(room.players) - 1
+        return remaining < 2 or ((room.game_state or {}).get("game_mode") == "standard" and remaining == 2)
+
+    def leave_game(self, room: Room, player_id: str, *, confirm_end: bool = False) -> Room:
+        """Remove a player and reconcile the current turn atomically."""
+        def leave(latest: Room) -> None:
+            state = latest.game_state or {}
+            player = next((p for p in latest.players if p.player_id == player_id), None)
+            if not latest.started or not player:
+                raise GameStateConflictError("The game or player has changed. Please refresh.")
+            ends_game = self.leaving_ends_game(latest)
+            if ends_game and not confirm_end:
+                raise LeaveWouldEndGame("Leaving now will end the game for everyone.")
+            if state.get("phase") == "reveal" and not state.get("round_summary"):
+                raise GameStateConflictError("The round results are still being prepared. Please try again.")
+            order = list(state.get("storyteller_order") or [])
+            index = state.get("turn_index", 0) % len(order) if order else 0
+            storyteller = order[index] if order else None
+            latest.players = [p for p in latest.players if p.player_id != player_id]
+            if latest.host_id == player_id and latest.players:
+                new_host = min(latest.players, key=lambda p: p.joined_at)
+                new_host.role = PlayerRole.HOST
+                latest.host_id, latest.host_name = new_host.player_id, new_host.name
+            state.setdefault("pending_reveals", {}).pop(player_id, None)
+            state.setdefault("departed_players", {})[player_id] = player.to_dict()
+            state["reveal_ready"] = [pid for pid in state.get("reveal_ready", []) if pid != player_id]
+            state.setdefault("saved_questions_by_player", {}).pop(player_id, None)
+            if ends_game:
+                state["phase"] = "results"
+                state["pending_reveals"] = {}
+                state["winners"] = []
+                state["no_winner"] = True
+                reason = ("fewer than two players remain" if len(latest.players) < 2
+                          else "only two players remain in a standard game")
+                state["end_reason"] = f"{player.name} left, so the game ended because {reason}."
+            elif storyteller == player_id and state.get("phase") not in {"reveal", "results"}:
+                next_id = next((order[(index + offset) % len(order)] for offset in range(1, len(order))
+                                if order[(index + offset) % len(order)] != player_id), None)
+                state["storyteller_order"] = [pid for pid in order if pid != player_id]
+                state["turn_index"] = state["storyteller_order"].index(next_id) if next_id else 0
+                self._prepare_next_turn_state(state, False)
+            elif state.get("phase") != "reveal":
+                state["storyteller_order"] = [pid for pid in order if pid != player_id]
+                if storyteller in state["storyteller_order"]:
+                    state["turn_index"] = state["storyteller_order"].index(storyteller)
+                elif state["storyteller_order"]:
+                    state["turn_index"] = index % len(state["storyteller_order"])
+                if state.get("phase") == "answer_entry":
+                    submissions = state.get("answer_submissions") or {}
+                    submissions.pop(player_id, None)
+                    state["answer_submissions"] = submissions
+                    if all(p.player_id in submissions for p in latest.players):
+                        options = [{'label': '', 'text': submissions[p.player_id].strip(),
+                                    'kind': 'true' if p.player_id == storyteller else 'listener',
+                                    'owner_id': p.player_id} for p in latest.players]
+                        random.shuffle(options)
+                        for idx, option in enumerate(options):
+                            option['label'] = chr(ord('A') + idx)
+                        state['multiple_choice'] = {'options': options}
+                        state['listener_guesses'] = {}
+                        state['phase'] = 'guessing'
+                elif state.get("phase") == "guessing":
+                    options = (state.get("multiple_choice") or {}).get("options", [])
+                    removed = {o.get("label") for o in options if o.get("owner_id") == player_id}
+                    state["multiple_choice"]["options"] = [o for o in options if o.get("owner_id") != player_id]
+                    invalidated = [pid for pid, guess in (state.get("listener_guesses") or {}).items()
+                                   if pid != player_id and guess.get("label") in removed]
+                    state["invalidated_guesses"] = list(set(state.get("invalidated_guesses") or []) | set(invalidated))
+                    state["listener_guesses"] = {pid: guess for pid, guess in (state.get("listener_guesses") or {}).items()
+                                                  if pid != player_id and guess.get("label") not in removed}
+            state["last_departure"] = {"id": str(uuid.uuid4()), "name": player.name,
+                                       "ended": ends_game, "new_host": latest.host_name if latest.host_id != player_id and player.role == PlayerRole.HOST else None}
+            latest.game_state = state
+            latest.update_timestamp()
+
+        try:
+            latest, _ = self.room_service.repository.update(room.room_code, leave)
+        except KeyError as exc:
+            raise GameStateConflictError("The room is no longer available.") from exc
+        room.__dict__.update(latest.__dict__)
+        return room
 
     def start_game(self, room: Room) -> Room:
         def start(latest: Room) -> None:
@@ -195,7 +285,13 @@ class GameService:
             state["round"] = state.get("round", 1) + 1
             order = state.get("storyteller_order", [])
             if order:
-                state["turn_index"] = (state.get("turn_index", 0) + 1) % len(order)
+                index = state.get("turn_index", 0) % len(order)
+                departed = set(state.get("departed_players") or {})
+                next_id = next((order[(index + offset) % len(order)] for offset in range(1, len(order) + 1)
+                                if order[(index + offset) % len(order)] not in departed), None)
+                order = [pid for pid in order if pid not in departed]
+                state["storyteller_order"] = order
+                state["turn_index"] = order.index(next_id) if next_id else 0
         else:
             state["turn_index"] = state.get("turn_index", 0)
 
@@ -211,6 +307,7 @@ class GameService:
         state["answer_submissions"] = {}
         state["multiple_choice"] = {"options": []}
         state["listener_guesses"] = {}
+        state["invalidated_guesses"] = []
         state["round_summary"] = None
         state["reveal_ready"] = []
         order = state.get("storyteller_order") or []

@@ -16,6 +16,7 @@ class WaitingUITests(unittest.TestCase):
     def test_translation_fallback_is_visible_to_listeners(self, st, show_room, show_scores):
         st.button.return_value = False
         flow = GameFlow(Mock(), Mock(), Mock())
+        flow._render_leave_game = Mock()
         room = SimpleNamespace(room_code='TEST', players=[])
         state = {'phase': 'answer_entry', 'scores': {}, 'question': {'translation_fallback': True}}
         flow._render_board(room, state, SimpleNamespace(name='Alex'), 'Bea', False, False)

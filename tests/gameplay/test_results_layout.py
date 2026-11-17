@@ -3,9 +3,24 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from ui.game_flow import GameFlow
+from ui import visual
 
 
 class ResultsLayoutTests(unittest.TestCase):
+    @patch('ui.visual.st')
+    def test_winner_announcement_includes_ties_scores_and_escaped_names(self, st):
+        winners = [SimpleNamespace(player_id='a', name='Alex <friend>', emoji='😀'),
+                   SimpleNamespace(player_id='b', name='Bea', emoji='🐱')]
+        visual.winner_announcement(winners, {'a': 12, 'b': 12})
+        markup = st.html.call_args.args[0]
+        self.assertIn("It's a tie!", markup)
+        self.assertIn('😀 Alex &lt;friend&gt;', markup)
+        self.assertIn('🐱 Bea', markup)
+        self.assertEqual(markup.count('12 pts'), 2)
+        self.assertIn('role="status"', markup)
+        self.assertIn('unfold-shape left', markup)
+        self.assertIn('unfold-shape right', markup)
+        self.assertNotIn('winner-petal', markup)
     @patch('ui.game_flow.st')
     def test_ending_before_first_completed_round_does_not_announce_winners(self, st):
         st.button.return_value = False

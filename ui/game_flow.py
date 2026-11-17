@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 import streamlit as st
 
 from models import DEFAULT_THEMES, Level, Player, Room
-from services.game_service import GameService, GameStateConflictError
+from services.game_service import GameService, GameStateConflictError, LeaveWouldEndGame
 from services.two_player_game import judge_answer, player_statistics
 from services.assisted_sampling import assisted_candidates
 from services.llm_service import LLMService
@@ -28,6 +28,7 @@ from services.question_bank import (
     sample_question,
 )
 from storage.question_events import QuestionEvents
+from storage.room_repository import RoomStorageError
 from ui import common, visual
 
 
@@ -58,6 +59,13 @@ class GameFlow:
             return
         profile = st.session_state.get("player_profile", {})
         current_player_id = profile.get("player_id")
+        if current_player_id and not any(p.player_id == current_player_id for p in room.players):
+            st.session_state.pop("player_profile", None)
+            st.session_state.pop("active_room_code", None)
+            st.session_state["entry_notice"] = "You are no longer in that room."
+            st.session_state["route"] = "entry"
+            common.rerun()
+            return
         held_reveal = (room.game_state or {}).get("pending_reveals", {}).get(current_player_id)
         if (not room.started or not room.game_state) and not held_reveal:
             st.info("Waiting for the host to start the game...")
@@ -76,6 +84,12 @@ class GameFlow:
         current_player_name = profile.get("name")
         if held_reveal:
             state = copy.deepcopy(held_reveal)
+        departure = (room.game_state or {}).get("last_departure") or {}
+        if departure:
+            message = f"{departure.get('name', 'A player')} left the game."
+            if departure.get("new_host"):
+                message += f" {departure['new_host']} is now the host."
+            st.info(message)
         is_host = current_player_id == room.host_id
         storyteller_id = self._current_storyteller_id(state)
         storyteller = self._player_lookup(room).get(storyteller_id)
@@ -98,6 +112,8 @@ class GameFlow:
         )
         if should_watch_for_updates:
             self._watch_room_updates(room.room_code, room.updated_at.isoformat())
+        else:
+            self._watch_disruptive_updates(room.room_code, current_player_id, storyteller_id, phase)
 
         if phase != "results":
             self._render_board(
@@ -140,7 +156,10 @@ class GameFlow:
     # Board helpers
     # ------------------------------------------------------------------ #
     def _player_lookup(self, room: Room) -> Dict[str, Player]:
-        return {player.player_id: player for player in room.players}
+        archived = (getattr(room, "game_state", None) or {}).get("departed_players") or {}
+        lookup = {pid: Player.from_dict(data) for pid, data in archived.items()}
+        lookup.update({player.player_id: player for player in room.players})
+        return lookup
 
     def _current_storyteller_id(self, state: Dict[str, object]) -> Optional[str]:
         order = state.get("storyteller_order") or []
@@ -182,6 +201,25 @@ class GameFlow:
         if common.room_has_changed(self.room_service, room_code, known_updated_at):
             st.rerun()
 
+    @st.fragment(run_every=REFRESH_INTERVAL_SECONDS)
+    def _watch_disruptive_updates(self, room_code: str, player_id: Optional[str],
+                                  storyteller_id: Optional[str], phase: str) -> None:
+        """Update active editors only when their current turn has ended or changed."""
+        if not player_id:
+            return
+        try:
+            latest = self.room_service.get_room_by_code(room_code)
+        except RoomStorageError:
+            st.warning("Room connection interrupted. Trying again automatically…")
+            return
+        if not latest or not any(p.player_id == player_id for p in latest.players):
+            st.rerun()
+            return
+        current = latest.game_state or {}
+        if (not latest.started or (current.get("phase") == "results" and phase != "results")
+                or (phase != "results" and self._current_storyteller_id(current) != storyteller_id)):
+            st.rerun()
+
     def _render_board(
         self,
         room: Room,
@@ -207,11 +245,9 @@ class GameFlow:
         with st.expander("Room and scores"):
             common.show_room_summary(room)
             st.markdown("### Scoreboard")
-            lookup = self._player_lookup(room)
-            scoreboard = sorted((pid, score) for pid, score in (state.get("scores") or {}).items())
-            scoreboard.sort(key=lambda item: item[1], reverse=True)
-            ordered = [lookup[pid] for pid, _ in scoreboard if pid in lookup]
-            common.show_player_scores(ordered, dict(scoreboard), storyteller_id=self._current_storyteller_id(state))
+            scores = state.get("scores") or {}
+            ordered = sorted(room.players, key=lambda player: (-scores.get(player.player_id, 0), player.name.casefold()))
+            common.show_player_scores(ordered, scores, storyteller_id=self._current_storyteller_id(state))
 
             if st.button("Refresh game view", key=f"{room.room_code}_refresh_view"):
                 common.rerun()
@@ -220,6 +256,44 @@ class GameFlow:
                     st.caption("End the game and show the current scores? An unfinished round will not be scored.")
                     if st.button("End game now", key="host_end_game", width="stretch"):
                         self._finalize_results(room, state, manual=True)
+            self._render_leave_game(room)
+
+    def _render_leave_game(self, room: Room) -> None:
+        player_id = (st.session_state.get("player_profile") or {}).get("player_id")
+        if not player_id or not room.started:
+            return
+        notice = st.session_state.pop("leave_game_notice", None)
+        if notice:
+            st.warning(notice)
+        with st.popover("Leave game", key="leave_game_popover", on_change="rerun", width="stretch"):
+            ends_game = self.game_service.leaving_ends_game(room)
+            if ends_game:
+                reason = ("fewer than two players would remain" if len(room.players) - 1 < 2
+                          else "only two players would remain in this standard game")
+                st.warning(f"Leaving will end the game for everyone because {reason}.")
+            else:
+                st.write("Leave permanently? You won't be able to resume this player.")
+                if room.host_id == player_id:
+                    st.caption("The host role will pass to another player.")
+            if ends_game:
+                st.caption("Your player will be removed and cannot be resumed.")
+            if st.button("Leave and end game" if ends_game else "Leave game permanently",
+                         key="confirm_leave_game", width="stretch"):
+                try:
+                    self.game_service.leave_game(room, player_id, confirm_end=ends_game)
+                except (LeaveWouldEndGame, GameStateConflictError):
+                    st.session_state["leave_game_notice"] = "The room changed. Review the updated warning before leaving."
+                    common.rerun()
+                    return
+                st.session_state.pop("player_profile", None)
+                st.session_state.pop("active_room_code", None)
+                st.session_state.pop("host_flow", None)
+                st.session_state.pop("join_flow", None)
+                st.session_state["route"] = "entry"
+                st.session_state["entry_notice"] = "You left the game."
+                common.rerun()
+            st.button("Back to game", key="cancel_leave_game", width="stretch",
+                      on_click=lambda: st.session_state.update(leave_game_popover=False))
 
     # ------------------------------------------------------------------ #
     # Phase renderers
@@ -745,6 +819,8 @@ class GameFlow:
                 chosen = next((opt.get("text", "") for opt in options if opt.get("label") == chosen_label), "")
                 visual.answer_card("Your guess", chosen or "Choice unavailable")
             else:
+                if current_player_id in (state.get("invalidated_guesses") or []):
+                    st.warning("The player whose answer you chose left. Please choose another answer.")
                 if not display_to_option:
                     st.warning("No eligible answers are available to guess.")
                 else:
@@ -768,6 +844,8 @@ class GameFlow:
                         else:
                             guesses[current_player_id] = {"label": selected["label"]}
                             state["listener_guesses"] = guesses
+                            state["invalidated_guesses"] = [pid for pid in state.get("invalidated_guesses", [])
+                                                            if pid != current_player_id]
                             self._save_state(room, state)
         elif current_player_id == storyteller_id and storyteller_id is not None:
             self._render_storyteller_answers(options, storyteller_id)
@@ -918,19 +996,18 @@ class GameFlow:
                             key=lambda item: (-item[1], lookup[item[0]].name.casefold()))
         # A manually ended game can have a populated, all-zero scoreboard before
         # anyone has played. Only infer winners when a round was actually played.
-        winner_ids = state.get("winners") or (
+        winner_ids = [] if state.get("no_winner") else state.get("winners") or (
             [pid for pid, score in scoreboard if score == scoreboard[0][1]]
             if scoreboard and state.get("completed_rounds") else []
         )
-        winners = [lookup[pid].name for pid in winner_ids if pid in lookup]
+        winners = [lookup[pid] for pid in winner_ids if pid in lookup]
         st.header("Final scoreboard")
         if winners:
-            if len(winners) > 1:
-                st.success(f"🏆 {' & '.join(winners)} are the winners!")
-            else:
-                st.success(f"🏆 {winners[0]} is the winner!")
+            visual.winner_announcement(winners, scores)
         elif not state.get("completed_rounds"):
             st.info("No rounds were completed, so there is no winner yet.")
+        elif state.get("no_winner"):
+            st.info("The game ended early. The scores are shown below.")
         if state.get("end_reason"):
             st.caption(state["end_reason"])
 
@@ -1780,8 +1857,9 @@ class GameFlow:
         for pid, delta in deltas.items():
             state["scores"][pid] = state["scores"].get(pid, 0) + delta
 
-        highest = max(state["scores"].values(), default=0)
-        winners = ([pid for pid, score in state["scores"].items() if score == highest]
+        active_scores = {p.player_id: state["scores"].get(p.player_id, 0) for p in room.players}
+        highest = max(active_scores.values(), default=0)
+        winners = ([pid for pid, score in active_scores.items() if score == highest]
                    if highest >= room.settings.max_score else [])
         return {
             "guesses": guesses,
@@ -1822,7 +1900,7 @@ class GameFlow:
         )
 
     def _finalize_results(self, room: Room, state: Dict[str, object], manual: bool = False) -> None:
-        scores = state.get("scores", {})
+        scores = {p.player_id: (state.get("scores") or {}).get(p.player_id, 0) for p in room.players}
         if not scores:
             return
         top_score = max(scores.values())

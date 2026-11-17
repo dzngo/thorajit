@@ -91,6 +91,9 @@ class Router:
             common.rerun()
 
     def _render_entry(self) -> None:
+        notice = st.session_state.pop("entry_notice", None)
+        if notice:
+            st.info(notice)
         with st.container(key="welcome"):
             st.header("How well do you know each other?")
             if st.button("Create room", key="entry_create", type="primary", width="stretch"):

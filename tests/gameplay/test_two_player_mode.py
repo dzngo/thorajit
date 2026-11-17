@@ -77,9 +77,10 @@ class TwoPlayerTests(unittest.TestCase):
         flow._inject_results_arcade_css = Mock()
         room = SimpleNamespace(players=[SimpleNamespace(player_id='a', name='Alex'), SimpleNamespace(player_id='b', name='Bea')])
         state = {'game_mode': 'two_player', 'scores': {'a': 3, 'b': 3}, 'winners': ['a', 'b'], 'completed_rounds': []}
-        flow._render_results(room, state, True)
+        with patch('ui.game_flow.visual.winner_announcement') as announce:
+            flow._render_results(room, state, True)
         result = st.html.call_args.args[0]
-        self.assertIn('Alex & Bea are the winners', st.success.call_args.args[0])
+        announce.assert_called_once_with(room.players, state['scores'])
         self.assertEqual(result.count('<b>#1</b>'), 2)
         self.assertIn('No completed rounds yet.', result)
 
