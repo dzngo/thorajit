@@ -100,7 +100,7 @@ class HostFlow:
         with st.container(border=True, key="card_private_room"):
             is_private = st.toggle("Private room", value=bool(state.get("is_private", False)))
             help_text = (
-                "Guests will see a random room code in the room list."
+                "Share the room code with guests so they can join."
                 if is_private
                 else "Guests will see the room name directly in the room list."
             )
@@ -299,7 +299,7 @@ class HostFlow:
             st.selectbox("Game language", options=list(SUPPORTED_LANGUAGES), key=language_key,
                          format_func=lambda code: f"{LANGUAGE_FLAGS.get(code, '')} {SUPPORTED_LANGUAGES[code]}".strip())
             st.toggle("Private room", key=privacy_key)
-            st.caption("Guests will see the room code in the room list." if st.session_state[privacy_key]
+            st.caption("Share the room code with guests so they can join." if st.session_state[privacy_key]
                        else "Guests will see the room name in the room list.")
             st.caption("Changing these settings keeps everyone in the lobby.")
             dirty = (st.session_state[language_key], st.session_state[privacy_key]) != (display_language, saved[1])

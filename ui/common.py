@@ -36,7 +36,7 @@ def rerun() -> None:
 
 
 def show_room_summary(room: Room, display_llm: bool = False, *, show_private_name: bool = False) -> None:
-    display_name = room.name if not room.is_private or show_private_name else room.room_code
+    display_name = room.name
     settings = room.settings
     language_name = SUPPORTED_LANGUAGES.get(settings.language.lower(), settings.language.upper())
     flag = LANGUAGE_FLAGS.get(settings.language.lower(), "")

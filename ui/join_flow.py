@@ -41,6 +41,8 @@ class JoinFlow:
         step = self.state["step"]
         if step == "room_list":
             self._render_room_list()
+        elif step == "private_room":
+            self._render_private_room()
         elif step == "player_name":
             self._render_player_name()
         elif step == "reclaim_player":
@@ -61,14 +63,18 @@ class JoinFlow:
         st.header("Find your game")
         if state.get("notice"):
             st.warning(state["notice"])
-        st.write("Choose a room to join, or resume a game already in progress.")
+        st.write("Choose a public room to join, or resume a game already in progress.")
+        if st.button("Join private room", key="join_private_room", width="stretch"):
+            state.pop("notice", None)
+            state["step"] = "private_room"
+            common.rerun()
         rooms = sorted(
-            self.room_service.list_rooms(),
+            (room for room in self.room_service.list_rooms() if not room.is_private),
             key=lambda room: (not room.started, room.updated_at),
             reverse=True,
         )
         if not rooms:
-            st.info("No rooms yet. Ask your host to create one.")
+            st.info("No public rooms available. Ask your host for a private room code or to create a room.")
             if st.button("Refresh", key="room_list_refresh_empty", width="stretch"):
                 common.rerun()
             return
@@ -84,6 +90,7 @@ class JoinFlow:
 
         if st.button("Join room", key="room_list_next", type="primary", width="stretch"):
             state["candidate_room_code"] = selected_room_code
+            state["room_list_origin"] = "room_list"
             state.pop("notice", None)
             if selected_room.started:
                 state["selected_player_id"] = None
@@ -93,6 +100,29 @@ class JoinFlow:
             state["step"] = "player_name"
             common.rerun()
         if st.button("Refresh", key="room_list_refresh", width="stretch"):
+            common.rerun()
+
+    def _render_private_room(self) -> None:
+        state = self.state
+        if st.button("← Back", key="private_room_back"):
+            state["step"] = "room_list"
+            common.rerun()
+        st.header("Join private room")
+        st.write("Enter the room code shared by your host.")
+        code = st.text_input("Room code", key="private_room_code", placeholder="Enter room code")
+        if st.button("Continue", key="private_room_continue", type="primary", width="stretch"):
+            if not code.strip():
+                st.error("Enter the room code.")
+                return
+            room = self.room_service.get_room_by_code(code.strip().upper())
+            if not room or not room.is_private:
+                st.error("Private room not found. Check the code and try again.")
+                return
+            state["candidate_room_code"] = room.room_code
+            state["room_list_origin"] = "private_room"
+            state["selected_player_id"] = None
+            state.pop("notice", None)
+            state["step"] = "reclaim_player" if room.started else "player_name"
             common.rerun()
 
     def _render_player_name(self) -> None:
@@ -128,7 +158,7 @@ class JoinFlow:
         if back_slot.button("← Back", key="player_name_back"):
             state["player_name"] = player_name
             state["emoji"] = emoji
-            state["step"] = "room_list"
+            state["step"] = state.get("room_list_origin", "room_list")
             common.rerun()
         if st.button("Join room", key="player_name_join", type="primary", width="stretch"):
             cleaned_name = player_name.strip()
@@ -202,7 +232,7 @@ class JoinFlow:
             common.rerun()
             return
         if st.button("← Back", key="reclaim_back"):
-            state["step"] = "room_list"
+            state["step"] = state.get("room_list_origin", "room_list")
             state["selected_player_id"] = None
             common.rerun()
         if not room.players:

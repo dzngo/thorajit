@@ -13,11 +13,11 @@ class RoomSummaryUITests(unittest.TestCase):
                                settings=SimpleNamespace(language='en', max_score=10, llm_model='default'))
 
     @patch('ui.common.st')
-    def test_private_room_name_is_visible_only_to_host(self, st):
+    def test_private_room_name_is_visible_to_players_and_code_to_host(self, st):
         st.container.return_value = MagicMock()
         common.show_room_summary(self.room())
-        self.assertIn('ABCDE', st.html.call_args.args[0])
-        self.assertNotIn('Secret', str(st.mock_calls))
+        self.assertIn('Secret &lt;name&gt;', st.html.call_args.args[0])
+        self.assertNotIn('ABCDE', st.html.call_args.args[0])
         st.reset_mock()
         st.container.return_value = MagicMock()
         common.show_room_summary(self.room(), show_private_name=True)
