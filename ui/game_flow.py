@@ -1835,13 +1835,13 @@ class GameFlow:
                 if storyteller_id:
                     deltas[storyteller_id] += 3 * multiplier
             elif 0 < len(correct) < len(listeners):
-                for pid in correct:
-                    deltas[pid] += 1 * multiplier
-                if storyteller_id:
-                    deltas[storyteller_id] += 1 * multiplier
-            else:
                 for pid in listener_ids:
                     deltas[pid] += 2 * multiplier
+                if storyteller_id:
+                    deltas[storyteller_id] += 2 * multiplier
+            else:
+                for pid in listener_ids:
+                    deltas[pid] += multiplier
 
             decoy_picks = {pid: 0 for pid in listener_ids}
             for guesser_id, guess in guesses.items():

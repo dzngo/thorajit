@@ -33,7 +33,7 @@ JoinFlow(rooms).render()
 
 
 class HostLobbyScoreUITests(unittest.TestCase):
-    def test_guest_sees_room_code_after_host_makes_room_private(self):
+    def test_guest_sees_room_name_after_host_makes_room_private(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'rooms.json'
             rooms = RoomService(RoomRepository(path))
@@ -54,8 +54,8 @@ class HostLobbyScoreUITests(unittest.TestCase):
             host_app.button(key=f'{room.room_code}_settings_save').click().run()
             guest_app.run()
             markup = ' '.join(element.value for element in guest_app.get('html'))
-            self.assertIn(room.room_code, markup)
-            self.assertNotIn('Friends', markup)
+            self.assertIn('Friends', markup)
+            self.assertNotIn(room.room_code, markup)
             self.assertEqual(len(rooms.get_room_by_code(room.room_code).players), 2)
             self.assertFalse(guest_app.exception)
 

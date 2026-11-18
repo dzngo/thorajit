@@ -84,7 +84,7 @@ class TwoPlayerTests(unittest.TestCase):
         self.assertEqual(result.count('<b>#1</b>'), 2)
         self.assertIn('No completed rounds yet.', result)
 
-    def test_standard_scoring_still_awards_three_points_for_one_correct(self):
+    def test_standard_scoring_awards_three_points_for_one_correct(self):
         flow = GameFlow(Mock(), Mock(), Mock())
         room = SimpleNamespace(players=[SimpleNamespace(player_id='a'), SimpleNamespace(player_id='b'), SimpleNamespace(player_id='c')],
                                settings=SimpleNamespace(max_score=100))

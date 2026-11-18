@@ -66,15 +66,17 @@ Standard mode depth multiplier:
 - **Deep = x2**
 
 Base scoring by listener correctness:
-1. **Exactly one listener correct**:
+1. **Exactly one listener is correct**:
    - Correct listener: `+3 × Mult`
    - Storyteller: `+3 × Mult`
-2. **Some (not all) listeners correct**:
-   - Each correct listener: `+1 × Mult`
-   - Storyteller: `+1 × Mult`
-3. **Everyone correct OR nobody correct**:
+2. **More than one but not all listeners are correct**:
    - Every listener: `+2 × Mult`
+   - Storyteller: `+2 × Mult`
+3. **Everyone or nobody is correct**:
+   - Every listener: `+1 × Mult`
    - Storyteller: `0`
+
+In the second and third cases, every listener receives the base points, even if they guessed incorrectly or the host reveals before they submit a guess.
 
 Decoy bonus (stacks with base scoring):
 - If a listener’s submitted answer is selected by `N` other listeners, that listener gets:
