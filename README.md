@@ -70,13 +70,13 @@ Base scoring by listener correctness:
    - Correct listener: `+3 × Mult`
    - Storyteller: `+3 × Mult`
 2. **More than one but not all listeners are correct**:
-   - Every listener: `+2 × Mult`
+   - Each correct listener: `+2 × Mult`
    - Storyteller: `+2 × Mult`
 3. **Everyone or nobody is correct**:
    - Every listener: `+1 × Mult`
    - Storyteller: `0`
 
-In the second and third cases, every listener receives the base points, even if they guessed incorrectly or the host reveals before they submit a guess.
+When everyone or nobody is correct, every listener receives the base points, even if they guessed incorrectly or the host reveals before they submit a guess.
 
 Decoy bonus (stacks with base scoring):
 - If a listener’s submitted answer is selected by `N` other listeners, that listener gets:
@@ -124,7 +124,7 @@ Standard mode phases:
 3. **Answer Entry** — Every player submits one answer; no author names shown here
 4. **Guessing** — Listeners guess the Storyteller answer from the other players' answers
 5. **Reveal & Scoring** — Show Storyteller answer, listener guesses, and per-round point deltas
-6. **Results** — Final scoreboard and winners
+6. **Results** — Final scoreboard and winners, with a read-only round recap accessible to every player. Navigate completed rounds with the arrows or dropdown; each shows its question, answers, authors, and guesses. Older games may lack question or answer snapshots.
 
 In two-player mode, both players submit answers, then the Storyteller judges the Listener's answer before reveal. The final results show each player's Listener accuracy and correct answers by level.
 

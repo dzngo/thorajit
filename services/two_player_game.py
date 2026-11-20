@@ -28,6 +28,8 @@ def judge_answer(state: dict, storyteller_id: str, listener_id: str, correct: bo
         "correct": correct,
         "points": points,
         "theme": state.get("selected_theme"),
+        "question": (state.get("question") or {}).get("question", ""),
+        "answers": dict(submissions),
     }
     completed = state.setdefault("completed_rounds", [])
     completed.append(record)

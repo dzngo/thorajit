@@ -95,6 +95,8 @@ class GameFlow:
         storyteller = self._player_lookup(room).get(storyteller_id)
 
         phase = state.get("phase")
+        if phase != "results":
+            st.session_state.pop(f"{room.room_code}_show_round_recap", None)
         is_storyteller = current_player_id == storyteller_id
         submissions = state.get("answer_submissions", {})
         listener_has_submitted = bool(current_player_id and current_player_id in submissions)
@@ -990,6 +992,10 @@ class GameFlow:
                 f'role="region" aria-label="Answer choices and votes">{content}</div>')
 
     def _render_results(self, room: Room, state: Dict[str, object], is_host: bool) -> None:
+        recap_key = f"{room.room_code}_show_round_recap"
+        if st.session_state.get(recap_key):
+            self._render_round_recap(room, state, recap_key)
+            return
         lookup = self._player_lookup(room)
         scores = state.get("scores") or {}
         scoreboard = sorted(((player.player_id, scores.get(player.player_id, 0)) for player in room.players),
@@ -1032,6 +1038,11 @@ class GameFlow:
                 f'<div class="{rank_class}" tabindex="0" role="region" aria-label="Ranking">{ranking}</div></section>'
                 f'<div class="results-highlights">{stats}</div></div>')
 
+        if state.get("completed_rounds") and st.button("View round recap", key=f"{room.room_code}_open_recap", width="stretch"):
+            st.session_state[recap_key] = True
+            st.session_state.pop(f"{room.room_code}_recap_round", None)
+            common.rerun()
+
         if is_host:
             if st.button("Return to host lobby", key="results_return_lobby", type="primary", width="stretch"):
                 if (room.game_state or {}).get("question_events_pending"):
@@ -1053,6 +1064,60 @@ class GameFlow:
             if st.button("Back to entry", key="results_back_entry", type="primary", width="stretch"):
                 st.session_state["route"] = "entry"
                 common.rerun()
+
+    def _render_round_recap(self, room: Room, state: Dict[str, object], recap_key: str) -> None:
+        rounds = [item for item in (state.get("completed_rounds") or []) if isinstance(item, dict)]
+        if st.button("← Back to final scoreboard", key=f"{room.room_code}_recap_back", width="stretch"):
+            st.session_state[recap_key] = False
+            common.rerun()
+        st.header("Round recap")
+        if not rounds:
+            st.info("No completed rounds to show yet.")
+            return
+        selection_key = f"{room.room_code}_recap_round"
+        indices = list(range(len(rounds)))
+        if st.session_state.get(selection_key) not in indices:
+            st.session_state[selection_key] = 0
+
+        def move_round(offset: int) -> None:
+            st.session_state[selection_key] += offset
+
+        index = st.session_state[selection_key]
+        previous, selector, following = st.columns([1, 3, 1], vertical_alignment="bottom")
+        previous.button("←", key=f"{room.room_code}_recap_previous", help="Previous round",
+                        disabled=index == 0, on_click=move_round, args=(-1,), width="stretch")
+        selector.selectbox("Round", indices, format_func=lambda i: f"Round {rounds[i].get('round', i + 1)}",
+                           key=selection_key, label_visibility="collapsed")
+        following.button("→", key=f"{room.room_code}_recap_next", help="Next round",
+                         disabled=index == len(rounds) - 1, on_click=move_round, args=(1,), width="stretch")
+        round_data = rounds[st.session_state[selection_key]]
+        metadata = " · ".join(str(round_data[key]).title() for key in ("theme", "level") if round_data.get(key))
+        if metadata:
+            st.html(f'<div class="round-context"><div class="question-setup-text"><span>{html.escape(metadata)}</span></div></div>')
+        question = round_data.get("question")
+        if question:
+            visual.question_card(str(question))
+        else:
+            st.caption("The question was not saved for this round.")
+        lookup = self._player_lookup(room)
+        if "listener_id" in round_data:
+            answers = round_data.get("answers") or {}
+            if not answers:
+                st.info("The answers were not saved for this round.")
+                return
+            for role, pid in (("Storyteller", round_data.get("storyteller_id")),
+                              ("Listener", round_data.get("listener_id"))):
+                player = lookup.get(pid)
+                author = html.escape(f"{getattr(player, 'emoji', '') or ''} {player.name if player else role} ({role})".strip())
+                answer = html.escape(str(answers.get(pid, "")))
+                card_class = "vote-card correct" if role == "Storyteller" else "vote-card"
+                st.html(f'<div class="{card_class}"><div class="vote-content">{answer}</div>'
+                        f'<span class="vote-author">{author}</span></div>')
+            visual.decision_status(bool(round_data.get("correct")))
+        elif round_data.get("options"):
+            self._render_reveal_choices(round_data["options"], round_data.get("guesses") or {}, lookup)
+        else:
+            st.info("The answers were not saved for this round.")
 
     # ------------------------------------------------------------------ #
     # Scoring & helpers
@@ -1835,7 +1900,7 @@ class GameFlow:
                 if storyteller_id:
                     deltas[storyteller_id] += 3 * multiplier
             elif 0 < len(correct) < len(listeners):
-                for pid in listener_ids:
+                for pid in correct:
                     deltas[pid] += 2 * multiplier
                 if storyteller_id:
                     deltas[storyteller_id] += 2 * multiplier
@@ -1890,6 +1955,7 @@ class GameFlow:
                 "storyteller_id": storyteller_id,
                 "theme": state.get("selected_theme"),
                 "level": state.get("selected_level"),
+                "question": (state.get("question") or {}).get("question", ""),
                 "listener_ids": [player.player_id for player in room.players if player.player_id != storyteller_id],
                 "guesses": copy.deepcopy(guesses),
                 "correct_listener_ids": list(correct),

@@ -73,9 +73,10 @@ class TwoPlayerTests(unittest.TestCase):
     @patch('ui.game_flow.st')
     def test_final_screen_displays_tie_and_matching_ranks(self, st):
         st.button.return_value = False
+        st.session_state.get.return_value = False
         flow = GameFlow(Mock(), Mock(), Mock())
         flow._inject_results_arcade_css = Mock()
-        room = SimpleNamespace(players=[SimpleNamespace(player_id='a', name='Alex'), SimpleNamespace(player_id='b', name='Bea')])
+        room = SimpleNamespace(room_code='TEST', players=[SimpleNamespace(player_id='a', name='Alex'), SimpleNamespace(player_id='b', name='Bea')])
         state = {'game_mode': 'two_player', 'scores': {'a': 3, 'b': 3}, 'winners': ['a', 'b'], 'completed_rounds': []}
         with patch('ui.game_flow.visual.winner_announcement') as announce:
             flow._render_results(room, state, True)

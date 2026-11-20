@@ -26,7 +26,7 @@ class ResultsLayoutTests(unittest.TestCase):
         st.button.return_value = False
         flow = GameFlow(Mock(), Mock(), Mock())
         flow._save_state = Mock()
-        room = SimpleNamespace(players=[SimpleNamespace(player_id='a', name='Alex'),
+        room = SimpleNamespace(room_code='TEST', players=[SimpleNamespace(player_id='a', name='Alex'),
                                         SimpleNamespace(player_id='b', name='Bea')])
         state = {'scores': {'a': 0, 'b': 0}, 'completed_rounds': []}
 
@@ -34,6 +34,7 @@ class ResultsLayoutTests(unittest.TestCase):
         self.assertEqual(state['winners'], [])
         st.reset_mock()
         st.button.return_value = False
+        st.session_state.get.return_value = False
         flow._render_results(room, state, True)
 
         st.success.assert_not_called()

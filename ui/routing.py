@@ -52,7 +52,7 @@ class Router:
         ### Scoring rules
         - **Depth multiplier** - Shallow = x1, Deep = x2.
         - **Exactly one Listener is correct**: that Listener **+3 x depth**, Storyteller **+3 x depth**.
-        - **More than one, but not all Listeners are correct**: each Listener **+2 x depth**, Storyteller **+2 x depth**.
+        - **More than one, but not all Listeners are correct**: each correct Listener **+2 x depth**, Storyteller **+2 x depth**.
         - **Everyone or nobody is correct**: each Listener **+1 x depth**, Storyteller **0**.
         - **Decoy bonus**: if a Listener's submitted answer is chosen by N other Listeners, that Listener gets **+N x depth**.
 
