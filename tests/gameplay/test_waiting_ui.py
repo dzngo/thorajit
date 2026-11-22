@@ -22,7 +22,7 @@ class WaitingUITests(unittest.TestCase):
         flow._render_leave_game = Mock()
         room = SimpleNamespace(room_code='TEST', players=[])
         state = {'phase': 'answer_entry', 'scores': {}, 'question': {'translation_fallback': True}}
-        flow._render_board(room, state, SimpleNamespace(name='Alex'), 'Bea', False, False)
+        flow._render_board.__wrapped__(flow, room, state, SimpleNamespace(name='Alex'), 'Bea', False, False)
         st.info.assert_called_once()
         self.assertIn('shown in English', st.info.call_args.args[0])
 

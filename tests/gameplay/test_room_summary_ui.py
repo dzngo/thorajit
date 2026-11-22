@@ -13,6 +13,15 @@ class RoomSummaryUITests(unittest.TestCase):
                                settings=SimpleNamespace(language='en', max_score=10, llm_model='default'))
 
     @patch('ui.common.st')
+    def test_game_settings_can_show_private_code_without_showing_public_code(self, st):
+        st.container.return_value = MagicMock()
+        common.show_room_summary(self.room(), show_mode=False, show_room_code=True)
+        self.assertIn('<dt>Room code</dt><dd>ABCDE</dd>', st.html.call_args.args[0])
+        self.assertNotIn('<dt>Mode</dt>', st.html.call_args.args[0])
+        common.show_room_summary(self.room(private=False), show_mode=False, show_room_code=True)
+        self.assertNotIn('<dt>Room code</dt>', st.html.call_args.args[0])
+
+    @patch('ui.common.st')
     def test_room_summary_can_hide_mode(self, st):
         st.container.return_value = MagicMock()
         common.show_room_summary(self.room(), show_mode=False)

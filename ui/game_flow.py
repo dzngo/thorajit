@@ -222,6 +222,7 @@ class GameFlow:
                 or (phase != "results" and self._current_storyteller_id(current) != storyteller_id)):
             st.rerun()
 
+    @st.fragment
     def _render_board(
         self,
         room: Room,
@@ -240,17 +241,38 @@ class GameFlow:
         else:
             role = f"Storyteller: {storyteller_name}"
         panel_key = f"{room.room_code}_game_panel"
-        panel = st.session_state.get(panel_key)
+        def toggle_panel(name: str) -> None:
+            st.session_state[panel_key] = None if st.session_state.get(panel_key) == name else name
+
         with st.container(key="game_panel_buttons"):
             score_button, settings_button = st.columns(2)
-            if score_button.button(":material/leaderboard:", key=f"{room.room_code}_open_scores",
-                                   width="stretch"):
-                st.session_state[panel_key] = None if panel == "scores" else "scores"
+            score_button.button(":material/leaderboard:", key=f"{room.room_code}_open_scores",
+                                on_click=toggle_panel, args=("scores",), width="stretch")
+            settings_button.button(":material/settings:", key=f"{room.room_code}_open_settings",
+                                   on_click=toggle_panel, args=("settings",), width="stretch")
+        panel = st.session_state.get(panel_key)
+        if panel:
+            try:
+                latest_room = self.room_service.get_room_by_code(room.room_code)
+            except RoomStorageError:
+                st.warning("Room connection interrupted. Try refreshing the game view.")
+                return
+            if latest_room is None:
                 common.rerun()
-            if settings_button.button(":material/settings:", key=f"{room.room_code}_open_settings",
-                                      width="stretch"):
-                st.session_state[panel_key] = None if panel == "settings" else "settings"
-                common.rerun()
+                return
+            if isinstance(latest_room, Room):
+                room = latest_room
+                player_id = (st.session_state.get("player_profile") or {}).get("player_id")
+                if player_id and not any(player.player_id == player_id for player in room.players):
+                    common.rerun()
+                    return
+                held = (room.game_state or {}).get("pending_reveals", {}).get(player_id)
+                latest_state = held or room.game_state or {}
+                if latest_state.get("phase") != state.get("phase"):
+                    common.rerun()
+                    return
+                state = latest_state
+                is_host = player_id == room.host_id and not held
         if panel == "scores":
             with st.container(border=True, key="card_game_scoreboard"):
                 st.markdown("### Scoreboard")
@@ -261,7 +283,7 @@ class GameFlow:
                     common.rerun()
         elif panel == "settings":
             with st.container(border=True, key="card_game_settings"):
-                common.show_room_summary(room, show_mode=False)
+                common.show_room_summary(room, show_mode=False, show_room_code=True)
                 if is_host:
                     with st.popover("End game", key="end_game_popover", width="stretch"):
                         st.caption("End the game and show the current scores? An unfinished round will not be scored.")
