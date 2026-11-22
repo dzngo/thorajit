@@ -51,6 +51,13 @@ class GuessingTests(unittest.TestCase):
         st.radio.assert_not_called()
 
     @patch('ui.game_flow.visual.waiting_card')
+    @patch('ui.game_flow.st')
+    def test_listener_choosing_sees_the_same_waiting_card(self, st, waiting):
+        st.button.return_value = False
+        self.flow._render_guess_phase(self.room, self.state, 'story', 'one', True)
+        waiting.assert_called_once_with('Waiting for 2 listeners to choose…', '')
+
+    @patch('ui.game_flow.visual.waiting_card')
     @patch('ui.game_flow.visual.answer_card')
     @patch('ui.game_flow.visual.question_card')
     @patch('ui.game_flow.st')

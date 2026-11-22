@@ -71,7 +71,7 @@ with patch('ui.game_flow.common.show_room_summary'), patch('ui.game_flow.common.
         waiting_card.assert_called_once_with('Alex is choosing a question', '')
 
     @patch('ui.game_flow.st')
-    def test_storyteller_watches_reveal_for_host_advancing_turn(self, st):
+    def test_storyteller_renders_latest_reveal(self, st):
         profile = {'player_id': 'a', 'name': 'Alex'}
         st.session_state.get.side_effect = {'active_room_code': 'TEST', 'player_profile': profile}.get
         state = {'phase': 'reveal', 'game_mode': 'standard', 'storyteller_order': ['a'], 'turn_index': 0}
@@ -82,14 +82,13 @@ with patch('ui.game_flow.common.show_room_summary'), patch('ui.game_flow.common.
         service.get_room_by_code.return_value = room
         flow = GameFlow(service, Mock(), Mock())
         flow._flush_events = Mock()
-        flow._watch_room_updates = Mock()
         flow._render_board = Mock()
         flow._render_reveal_phase = Mock()
         flow.render()
-        flow._watch_room_updates.assert_called_once_with('TEST', room.updated_at.isoformat())
+        flow._render_reveal_phase.assert_called_once()
 
     @patch('ui.game_flow.st')
-    def test_listener_choosing_a_guess_watches_for_early_reveal(self, st):
+    def test_listener_renders_latest_guessing_state(self, st):
         profile = {'player_id': 'b', 'name': 'Bea'}
         st.session_state.get.side_effect = {'active_room_code': 'TEST', 'player_profile': profile}.get
         state = {'phase': 'guessing', 'storyteller_order': ['a'], 'turn_index': 0,
@@ -102,11 +101,10 @@ with patch('ui.game_flow.common.show_room_summary'), patch('ui.game_flow.common.
         service.get_room_by_code.return_value = room
         flow = GameFlow(service, Mock(), Mock())
         flow._flush_events = Mock()
-        flow._watch_room_updates = Mock()
         flow._render_board = Mock()
         flow._render_guess_phase = Mock()
         flow.render()
-        flow._watch_room_updates.assert_called_once_with('TEST', room.updated_at.isoformat())
+        flow._render_guess_phase.assert_called_once()
 
     @patch('ui.game_flow.common.rerun')
     @patch('ui.game_flow.st')

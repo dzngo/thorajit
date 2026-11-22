@@ -21,7 +21,6 @@ from ui.components.host_roster import host_roster
 
 class HostFlow:
     STATE_KEY = "host_flow"
-    REFRESH_INTERVAL_SECONDS = 3
 
     def __init__(
         self,
@@ -143,6 +142,8 @@ class HostFlow:
                     return
                 state["room_code"] = room.room_code
                 state["step"] = "lobby"
+                st.session_state["player_profile"] = {"player_id": room.host_id, "room_code": room.room_code,
+                                                       "name": room.host_name}
             common.rerun()
 
     def _render_existing_room_decision(self) -> None:
@@ -174,11 +175,11 @@ class HostFlow:
         room = self._load_room(state["room_code"])
         if not room:
             st.warning("Room could not be found. Let's start again.")
+            common.clear_reconnect(self.room_service.repository)
+            st.session_state.pop("player_profile", None)
             self.reset()
             common.rerun()
             return
-
-        self._watch_room_updates(room.room_code, room.updated_at.isoformat())
 
         st.session_state["player_profile"] = {
             "player_id": room.host_id,
@@ -272,6 +273,8 @@ class HostFlow:
         if col1.button("Refresh lobby", key="lobby_refresh"):
             common.rerun()
         if col2.button("Change room", key="lobby_change_room"):
+            common.clear_reconnect(self.room_service.repository)
+            st.session_state.pop("player_profile", None)
             state["step"] = "room_name"
             state["existing_room_code"] = None
             state["room_code"] = None
@@ -326,12 +329,6 @@ class HostFlow:
                 st.button("Discard changes", key=f"{room.room_code}_settings_discard", on_click=discard_changes,
                           width="stretch")
         return dirty or baseline != saved
-    @st.fragment(run_every=REFRESH_INTERVAL_SECONDS)
-    def _watch_room_updates(self, room_code: str, known_updated_at: str) -> None:
-        """Rerun the page only when another player changes the room."""
-        if common.room_has_changed(self.room_service, room_code, known_updated_at):
-            st.rerun()
-
     def _build_room_settings(self, state: Dict[str, object]) -> RoomSettings:
         existing_room = self._get_existing_room() if state["editing_existing"] else None
         max_score = existing_room.settings.max_score if existing_room else 100

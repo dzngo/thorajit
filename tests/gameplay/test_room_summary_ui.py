@@ -22,6 +22,12 @@ class RoomSummaryUITests(unittest.TestCase):
         self.assertNotIn('<dt>Room code</dt>', st.html.call_args.args[0])
 
     @patch('ui.common.st')
+    def test_game_settings_show_the_current_player_name_safely(self, st):
+        st.container.return_value = MagicMock()
+        common.show_room_summary(self.room(), player_name='Alex <Guest>')
+        self.assertIn('<dt>Playing as</dt><dd>Alex &lt;Guest&gt;</dd>', st.html.call_args.args[0])
+
+    @patch('ui.common.st')
     def test_room_summary_can_hide_mode(self, st):
         st.container.return_value = MagicMock()
         common.show_room_summary(self.room(), show_mode=False)

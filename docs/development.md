@@ -6,7 +6,7 @@ Use Python 3.12 or later and install the dependencies in a virtual environment:
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/streamlit run app.py
+.venv/bin/streamlit run asgi_app.py
 ```
 
 Open the local URL printed by Streamlit. For multiple players, each player opens the app in a separate browser session. The room store is a local JSON file; it is intended for a single app process, not multiple independent servers. The app reads environment settings from `.env` when present. See [Question bank and statistics](question-bank.md) for database and optional assisted-selection configuration.

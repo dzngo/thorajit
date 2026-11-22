@@ -26,6 +26,18 @@ def go_home() -> None:
     st.session_state["route"] = "entry"
 
 
+def clear_reconnect(repository=None) -> None:
+    token = st.session_state.get("reconnect_token")
+    identity = st.session_state.get("reconnect_identity")
+    if token and identity and repository:
+        from services.reconnect_service import ReconnectService
+        ReconnectService(repository).revoke(*identity, token)
+    st.session_state.pop("reconnect_token", None)
+    st.session_state.pop("reconnect_identity", None)
+    st.session_state["reconnect_clear"] = True
+    st.session_state["reconnect_checked"] = True
+
+
 def rerun() -> None:
     """Trigger a Streamlit rerun while supporting older versions."""
     rerun_fn = getattr(st, "rerun", None)
@@ -36,7 +48,8 @@ def rerun() -> None:
 
 
 def show_room_summary(room: Room, display_llm: bool = False, *, show_private_name: bool = False,
-                      show_mode: bool = True, show_room_code: bool = False) -> None:
+                      show_mode: bool = True, show_room_code: bool = False,
+                      player_name: str | None = None) -> None:
     display_name = room.name
     settings = room.settings
     language_name = SUPPORTED_LANGUAGES.get(settings.language.lower(), settings.language.upper())
@@ -46,6 +59,8 @@ def show_room_summary(room: Room, display_llm: bool = False, *, show_private_nam
     count = len(room.players)
     mode = (room.game_state or {}).get("game_mode") if room.started else ("two_player" if count == 2 else "standard")
     rows = [("Room", f"{privacy_label} · {language_display}")]
+    if player_name:
+        rows.append(("Playing as", player_name))
     if room.is_private and (show_private_name or show_room_code):
         rows.append(("Room code", room.room_code))
     rows.extend([

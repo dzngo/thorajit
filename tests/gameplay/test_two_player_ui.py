@@ -84,6 +84,16 @@ class TwoPlayerUITests(unittest.TestCase):
         self.assertEqual(app.text_area[0].value, 'Coffee')
         self.assertFalse(app.exception)
 
+    def test_answer_progress_updates_while_preserving_a_draft(self):
+        app = AppTest.from_string(APP).run()
+        self.assertIn('0 of 2 players have submitted an answer.', app.info[0].value)
+        app.text_area[0].input('Unfinished answer').run()
+        app.session_state.game['answer_submissions'] = {'b': 'Private answer'}
+        app.run()
+        self.assertEqual(app.text_area[0].value, 'Unfinished answer')
+        self.assertEqual(app.info[0].value, 'Only you have not yet submitted.')
+        self.assertFalse(any('Private answer' in item.value for item in app.markdown))
+
     def test_both_can_submit_same_answer_and_only_storyteller_judges(self):
         app = AppTest.from_string(APP).run()
         self.assertNotIn('Suggest answer', [button.label for button in app.button])

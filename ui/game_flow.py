@@ -36,8 +36,6 @@ logger = logging.getLogger(__name__)
 
 
 class GameFlow:
-    REFRESH_INTERVAL_SECONDS = 3
-
     def __init__(
         self,
         room_service: RoomService,
@@ -55,11 +53,17 @@ class GameFlow:
             return
         room = self.room_service.get_room_by_code(room_code)
         if not room:
-            st.warning("Room no longer exists.")
+            common.clear_reconnect(self.room_service.repository)
+            st.session_state.pop("player_profile", None)
+            st.session_state.pop("active_room_code", None)
+            st.session_state["entry_notice"] = "Room no longer exists."
+            st.session_state["route"] = "entry"
+            common.rerun()
             return
         profile = st.session_state.get("player_profile", {})
         current_player_id = profile.get("player_id")
         if current_player_id and not any(p.player_id == current_player_id for p in room.players):
+            common.clear_reconnect(self.room_service.repository)
             st.session_state.pop("player_profile", None)
             st.session_state.pop("active_room_code", None)
             st.session_state["entry_notice"] = "You are no longer in that room."
@@ -70,6 +74,9 @@ class GameFlow:
         if (not room.started or not room.game_state) and not held_reveal:
             visual.waiting_card("Waiting for the host to start…", "")
             if st.button("Back to entry"):
+                common.clear_reconnect(self.room_service.repository)
+                st.session_state.pop("player_profile", None)
+                st.session_state.pop("active_room_code", None)
                 st.session_state["route"] = "entry"
                 common.rerun()
             return
@@ -98,24 +105,6 @@ class GameFlow:
         if phase != "results":
             st.session_state.pop(f"{room.room_code}_show_round_recap", None)
         is_storyteller = current_player_id == storyteller_id
-        submissions = state.get("answer_submissions", {})
-        listener_has_submitted = bool(current_player_id and current_player_id in submissions)
-        waiting_phases = {
-            "saved_questions",
-            "theme_selection",
-            "level_selection",
-            "question_generation",
-            "judgment",
-        }
-        should_watch_for_updates = (
-            phase in {"guessing", "reveal"}
-            or (not is_storyteller and phase in waiting_phases)
-            or (phase == "answer_entry" and listener_has_submitted)
-        )
-        if should_watch_for_updates:
-            self._watch_room_updates(room.room_code, room.updated_at.isoformat())
-        else:
-            self._watch_disruptive_updates(room.room_code, current_player_id, storyteller_id, phase)
 
         if phase != "results":
             self._render_board(
@@ -197,31 +186,6 @@ class GameFlow:
         question_key = f"{room.room_code}_question_text"
         return question_key, f"{question_key}_prefill", f"{question_key}_editing"
 
-    @st.fragment(run_every=REFRESH_INTERVAL_SECONDS)
-    def _watch_room_updates(self, room_code: str, known_updated_at: str) -> None:
-        """Rerun a passive game view only after another player saves a change."""
-        if common.room_has_changed(self.room_service, room_code, known_updated_at):
-            st.rerun()
-
-    @st.fragment(run_every=REFRESH_INTERVAL_SECONDS)
-    def _watch_disruptive_updates(self, room_code: str, player_id: Optional[str],
-                                  storyteller_id: Optional[str], phase: str) -> None:
-        """Update active editors only when their current turn has ended or changed."""
-        if not player_id:
-            return
-        try:
-            latest = self.room_service.get_room_by_code(room_code)
-        except RoomStorageError:
-            st.warning("Room connection interrupted. Trying again automatically…")
-            return
-        if not latest or not any(p.player_id == player_id for p in latest.players):
-            st.rerun()
-            return
-        current = latest.game_state or {}
-        if (not latest.started or (current.get("phase") == "results" and phase != "results")
-                or (phase != "results" and self._current_storyteller_id(current) != storyteller_id)):
-            st.rerun()
-
     @st.fragment
     def _render_board(
         self,
@@ -279,17 +243,34 @@ class GameFlow:
                 scores = state.get("scores") or {}
                 ordered = sorted(room.players, key=lambda player: (-scores.get(player.player_id, 0), player.name.casefold()))
                 common.show_player_scores(ordered, scores, storyteller_id=self._current_storyteller_id(state))
-                if st.button("Refresh game view", key=f"{room.room_code}_refresh_view"):
-                    common.rerun()
+                actions, close = st.columns(2)
+                with actions:
+                    if st.button("Refresh game view", key=f"{room.room_code}_refresh_view", width="stretch"):
+                        common.rerun()
+                with close:
+                    st.button("Close", key=f"{room.room_code}_close_scores", on_click=toggle_panel,
+                              args=("scores",), width="stretch")
         elif panel == "settings":
             with st.container(border=True, key="card_game_settings"):
-                common.show_room_summary(room, show_mode=False, show_room_code=True)
-                if is_host:
-                    with st.popover("End game", key="end_game_popover", width="stretch"):
-                        st.caption("End the game and show the current scores? An unfinished round will not be scored.")
-                        if st.button("End game now", key="host_end_game", width="stretch"):
-                            self._finalize_results(room, state, manual=True)
-                self._render_leave_game(room)
+                common.show_room_summary(room, show_mode=False, show_room_code=True, player_name=current_player_name)
+                actions, close = st.columns(2)
+                with actions:
+                    if st.button("Back to main menu", key=f"{room.room_code}_back_to_main_menu", width="stretch"):
+                        st.session_state.pop("active_room_code", None)
+                        st.session_state.pop("host_flow", None)
+                        st.session_state.pop("join_flow", None)
+                        st.session_state[panel_key] = None
+                        st.session_state["route"] = "entry"
+                        common.rerun()
+                    if is_host:
+                        with st.popover("End game", key="end_game_popover", width="stretch"):
+                            st.caption("End the game and show the current scores? An unfinished round will not be scored.")
+                            if st.button("End game now", key="host_end_game", width="stretch"):
+                                self._finalize_results(room, state, manual=True)
+                    self._render_leave_game(room)
+                with close:
+                    st.button("Close", key=f"{room.room_code}_close_settings", on_click=toggle_panel,
+                              args=("settings",), width="stretch")
         st.html(f'<div class="round-context"><span class="round-pill">Round {round_number}</span>'
                 f'<span class="role-pill">{html.escape(role)}</span></div>')
         if (state.get("phase") in {"answer_entry", "guessing", "judgment", "reveal"}
@@ -324,6 +305,7 @@ class GameFlow:
                     common.rerun()
                     return
                 st.session_state.pop("player_profile", None)
+                common.clear_reconnect(self.room_service.repository)
                 st.session_state.pop("active_room_code", None)
                 st.session_state.pop("host_flow", None)
                 st.session_state.pop("join_flow", None)
@@ -671,11 +653,15 @@ class GameFlow:
 
         pending_count = sum(player.player_id not in submissions for player in room.players)
         if pending_count > 0:
-            label = "player" if pending_count == 1 else "players"
-            message = f"Waiting for {pending_count} {label} to answer…"
             if is_editing:
+                submitted_count = len(room.players) - pending_count
+                message = f"{submitted_count} of {len(room.players)} players have submitted an answer."
+                if pending_count == 1 and current_player_id not in submissions:
+                    message = "Only you have not yet submitted."
                 st.info(message)
             else:
+                label = "player" if pending_count == 1 else "players"
+                message = f"Waiting for {pending_count} {label} to answer…"
                 visual.waiting_card(message, "")
         else:
             message = ("All answers submitted. Moving to judgment..." if state.get("game_mode") == "two_player"
@@ -935,10 +921,7 @@ class GameFlow:
         if remaining_count > 0:
             label = "listener" if remaining_count == 1 else "listeners"
             message = f"Waiting for {remaining_count} {label} to choose…"
-            if current_player_id == storyteller_id or current_player_id in guesses:
-                visual.waiting_card(message, "")
-            else:
-                st.caption(message)
+            visual.waiting_card(message, "")
         else:
             state["phase"] = "reveal"
             self._save_state(room, state, refresh_on_conflict=True)
@@ -1140,6 +1123,9 @@ class GameFlow:
                         common.rerun()
         else:
             if st.button("Back to entry", key="results_back_entry", type="primary", width="stretch"):
+                common.clear_reconnect(self.room_service.repository)
+                st.session_state.pop("player_profile", None)
+                st.session_state.pop("active_room_code", None)
                 st.session_state["route"] = "entry"
                 common.rerun()
 

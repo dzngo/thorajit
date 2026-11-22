@@ -13,7 +13,6 @@ from ui.components.emoji_picker import pick_emoji
 
 class JoinFlow:
     STATE_KEY = "join_flow"
-    REFRESH_INTERVAL_SECONDS = 3
 
     def __init__(self, room_service: RoomService) -> None:
         self.room_service = room_service
@@ -302,6 +301,8 @@ class JoinFlow:
         state = self.state
         room = self._load_joined_room()
         if not room:
+            common.clear_reconnect(self.room_service.repository)
+            st.session_state.pop("player_profile", None)
             state["notice"] = "That room has closed. Refresh the room list and choose another room."
             state["step"] = "room_list"
             state["joined_room_code"] = None
@@ -309,6 +310,7 @@ class JoinFlow:
             common.rerun()
             return
         if not any(player.player_id == state.get("player_id") for player in room.players):
+            common.clear_reconnect(self.room_service.repository)
             state["notice"] = "You are no longer in that room. Choose a room to join again."
             state["step"] = "room_list"
             state["joined_room_code"] = None
@@ -322,7 +324,6 @@ class JoinFlow:
             st.session_state["route"] = "game"
             common.rerun()
             return
-        self._watch_room_updates(room.room_code, room.updated_at.isoformat())
         st.header("Your room")
         common.show_room_summary(room, display_llm=False)
         st.markdown("### Players")
@@ -337,12 +338,6 @@ class JoinFlow:
             state["step"] = "room_list"
             state["candidate_room_code"] = None
             common.rerun()
-
-    @st.fragment(run_every=REFRESH_INTERVAL_SECONDS)
-    def _watch_room_updates(self, room_code: str, known_updated_at: str) -> None:
-        """Rerun the page only when the lobby changes."""
-        if common.room_has_changed(self.room_service, room_code, known_updated_at):
-            st.rerun()
 
     def _load_joined_room(self):
         code = self.state.get("joined_room_code")
@@ -367,6 +362,7 @@ class JoinFlow:
         common.rerun()
 
     def _leave_current_room(self) -> None:
+        common.clear_reconnect(self.room_service.repository)
         room_code = self.state.get("joined_room_code")
         player_id = self.state.get("player_id")
         if not (room_code and player_id):

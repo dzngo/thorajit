@@ -8,12 +8,14 @@ from textwrap import dedent
 from services.game_service import GameService
 from services.llm_service import LLMService
 from services.room_service import RoomService
+from services.reconnect_service import ReconnectService
 from storage.room_repository import RoomStorageError
 from ui import common
 from ui import visual
 from ui.game_flow import GameFlow
 from ui.host_flow import HostFlow
 from ui.join_flow import JoinFlow
+from ui.components.realtime import render_realtime
 
 
 class Router:
@@ -72,6 +74,7 @@ class Router:
         self.join_flow = JoinFlow(self.room_service)
 
     def render(self) -> None:
+        self._restore_browser_session()
         if "route" not in st.session_state:
             st.session_state["route"] = "entry"
         route = st.session_state["route"]
@@ -90,12 +93,75 @@ class Router:
             st.session_state["route"] = "entry"
             common.rerun()
 
+    def _restore_browser_session(self) -> None:
+        reconnect = ReconnectService(self.room_service.repository)
+        profile = st.session_state.get("player_profile") or {}
+        identity = (profile.get("room_code"), profile.get("player_id"))
+        if all(identity) and st.session_state.get("reconnect_identity") != identity:
+            try:
+                st.session_state["reconnect_token"] = reconnect.issue(*identity)
+                st.session_state["reconnect_identity"] = identity
+                st.session_state["reconnect_clear"] = False
+            except (KeyError, ValueError):
+                common.clear_reconnect(self.room_service.repository)
+        result = render_realtime(st.session_state.get("reconnect_token"),
+                                 st.session_state.get("reconnect_clear", False))
+        if getattr(result, "invalid", False) and st.session_state.get("reconnect_token"):
+            common.clear_reconnect(self.room_service.repository)
+            st.session_state.pop("player_profile", None)
+            st.session_state.pop("active_room_code", None)
+            st.session_state["route"] = "entry"
+            st.session_state["entry_notice"] = "Your saved session is no longer available. You can join or resume a player."
+            common.rerun()
+            return
+        credential = getattr(result, "credential", None)
+        if credential is None or st.session_state.get("reconnect_checked"):
+            return
+        st.session_state["reconnect_checked"] = True
+        if profile or not credential:
+            return
+        found = reconnect.resolve(credential)
+        if not found:
+            common.clear_reconnect()
+            st.session_state["entry_notice"] = "Your saved session is no longer available. You can join or resume a player."
+            common.rerun()
+            return
+        room, player = found
+        st.session_state["reconnect_token"] = credential
+        st.session_state["reconnect_identity"] = (room.room_code, player.player_id)
+        st.session_state["player_profile"] = {"player_id": player.player_id, "room_code": room.room_code,
+                                               "name": player.name}
+        if room.started or player.player_id in (room.game_state or {}).get("pending_reveals", {}):
+            st.session_state["active_room_code"] = room.room_code
+            st.session_state["route"] = "game"
+        elif player.player_id == room.host_id:
+            st.session_state["host_flow"] = {"step": "lobby", "room_code": room.room_code,
+                                             "host_name": player.name}
+            st.session_state["route"] = "host"
+        else:
+            st.session_state["join_flow"] = {"step": "lobby", "joined_room_code": room.room_code,
+                                             "candidate_room_code": room.room_code, "player_id": player.player_id,
+                                             "player_name": player.name, "emoji": player.emoji or "",
+                                             "selected_player_id": None}
+            st.session_state["route"] = "join"
+        common.rerun()
+
     def _render_entry(self) -> None:
         notice = st.session_state.pop("entry_notice", None)
         if notice:
             st.info(notice)
         with st.container(key="welcome"):
             st.header("How well do you know each other?")
+            profile = st.session_state.get("player_profile") or {}
+            room_code = profile.get("room_code")
+            player_id = profile.get("player_id")
+            room = self.room_service.get_room_by_code(room_code) if room_code and player_id else None
+            if (room and any(player.player_id == player_id for player in room.players)
+                    and (room.started or player_id in (room.game_state or {}).get("pending_reveals", {}))):
+                if st.button("Return to game", key="entry_return_game", width="stretch"):
+                    st.session_state["active_room_code"] = room.room_code
+                    st.session_state["route"] = "game"
+                    common.rerun()
             if st.button("Create room", key="entry_create", type="primary", width="stretch"):
                 st.session_state["route"] = "host"
                 common.rerun()

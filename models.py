@@ -509,6 +509,8 @@ class Player:
     joined_at: datetime
     is_connected: bool = True
     emoji: Optional[str] = None
+    reconnect_digest: Optional[str] = None
+    reconnect_expires_at: Optional[str] = None
 
     def to_dict(self) -> Dict[str, str]:
         return {
@@ -518,6 +520,8 @@ class Player:
             "joined_at": self.joined_at.isoformat(),
             "is_connected": self.is_connected,
             "emoji": self.emoji,
+            "reconnect_digest": self.reconnect_digest,
+            "reconnect_expires_at": self.reconnect_expires_at,
         }
 
     @classmethod
@@ -529,6 +533,8 @@ class Player:
             joined_at=_iso_to_datetime(data["joined_at"]),
             is_connected=data.get("is_connected", True),
             emoji=data.get("emoji"),
+            reconnect_digest=data.get("reconnect_digest"),
+            reconnect_expires_at=data.get("reconnect_expires_at"),
         )
 
 

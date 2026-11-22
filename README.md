@@ -23,10 +23,12 @@ You’ll need Python 3.12 or later. In a terminal, run:
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/streamlit run app.py
+.venv/bin/streamlit run asgi_app.py
 ```
 
 Open the address printed in the terminal. Each player needs a separate browser session; use the same running app to join a room. Play with people you trust: rejoining a player currently does not require authentication.
+
+The ASGI launcher provides the WebSocket used for room updates; launching `app.py` directly does not provide realtime updates. Run one server process with access to the same local JSON room file. Multiple workers or replicas cannot safely share this repository or notification channel. A reverse proxy must support WebSocket upgrades and preserve the original host and origin; use HTTPS outside localhost. The reconnect credential is stored in browser local storage for up to 30 days, so anyone with access to that browser profile can resume the player. Clearing browser data removes it; use the existing manual resume option to return. Manual resume is intentionally trust-based and lets anyone with room access select an existing player.
 
 ## More information
 

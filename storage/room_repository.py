@@ -11,6 +11,7 @@ from typing import Callable, Dict, List, Optional, TypeVar
 import streamlit as st
 
 from models import Room
+from storage.room_notifications import RoomNotifications
 
 T = TypeVar("T")
 
@@ -18,6 +19,11 @@ T = TypeVar("T")
 @st.cache_resource(show_spinner=False)  # type: ignore[arg-type]
 def _shared_room_lock() -> Lock:
     return Lock()
+
+
+@st.cache_resource(show_spinner=False)  # type: ignore[arg-type]
+def _shared_room_notifications() -> RoomNotifications:
+    return RoomNotifications()
 
 
 class RoomStorageError(OSError):
@@ -45,6 +51,8 @@ class RoomRepository:
         except OSError as exc:
             raise RoomStorageError("Room storage is unavailable.") from exc
         self._lock = _shared_room_lock()
+        self.notifications = _shared_room_notifications()
+        self.notification_key = str(self.storage_path.resolve())
 
     def list_rooms(self) -> List[Room]:
         with self._lock:
@@ -74,12 +82,14 @@ class RoomRepository:
                 raise RoomCodeExistsError()
             rooms[room.room_code.upper()] = room
             self._write(rooms)
+            self.notifications.publish(self.notification_key, room.room_code)
 
     def save(self, room: Room) -> None:
         with self._lock:
             rooms = self._load()
             rooms[room.room_code.upper()] = room
             self._write(rooms)
+            self.notifications.publish(self.notification_key, room.room_code)
 
     def update(self, room_code: str, operation: Callable[[Room], T]) -> tuple[Room, T]:
         """Apply a room mutation under the shared in-process lock."""
@@ -91,6 +101,7 @@ class RoomRepository:
             result = operation(room)
             rooms[room.room_code.upper()] = room
             self._write(rooms)
+            self.notifications.publish(self.notification_key, room.room_code)
             return room, result
 
     def delete(self, room_code: str) -> None:
@@ -100,6 +111,7 @@ class RoomRepository:
             if key in rooms:
                 del rooms[key]
                 self._write(rooms)
+                self.notifications.publish(self.notification_key, key)
 
     def _load(self) -> Dict[str, Room]:
         try:
