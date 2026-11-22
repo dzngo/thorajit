@@ -52,10 +52,11 @@ class GuessingTests(unittest.TestCase):
 
     @patch('ui.game_flow.visual.waiting_card')
     @patch('ui.game_flow.st')
-    def test_listener_choosing_sees_the_same_waiting_card(self, st, waiting):
+    def test_listener_choosing_sees_progress_as_text(self, st, waiting):
         st.button.return_value = False
         self.flow._render_guess_phase(self.room, self.state, 'story', 'one', True)
-        waiting.assert_called_once_with('Waiting for 2 listeners to choose…', '')
+        st.info.assert_called_once_with('Waiting for 2 listeners to choose…')
+        waiting.assert_not_called()
 
     @patch('ui.game_flow.visual.waiting_card')
     @patch('ui.game_flow.visual.answer_card')

@@ -596,6 +596,7 @@ class GameFlow:
         input_key = f"{room.room_code}_answer_input_{current_player_id}_{state.get('round', 1)}"
         prefill_key = f"{input_key}_prefill"
         editing_key = f"{input_key}_editing"
+        saved_draft = (state.get("answer_drafts") or {}).get(current_player_id, "")
         submitted = submissions.get(current_player_id, "")
         if not submitted:
             st.session_state.pop(editing_key, None)
@@ -613,7 +614,7 @@ class GameFlow:
         storyteller_name = storyteller.name if storyteller else "Storyteller"
         current_level = self._current_level_value(state)
         if input_key not in st.session_state:
-            st.session_state[input_key] = submitted
+            st.session_state[input_key] = submitted or saved_draft
         if prefill_key in st.session_state:
             st.session_state[input_key] = st.session_state.pop(prefill_key)
 
@@ -635,7 +636,12 @@ class GameFlow:
         if not is_editing:
             if st.button("Modify", key=f"{room.room_code}_modify_answer_{current_player_id}",
                          type="primary", width="stretch"):
-                st.session_state[editing_key] = True
+                state.setdefault("answer_drafts", {})[current_player_id] = submitted
+                submissions.pop(current_player_id, None)
+                state["answer_submissions"] = submissions
+                self._store_state(room, state)
+                st.session_state[prefill_key] = submitted
+                self._flush_events(room, state)
                 common.rerun()
         else:
             self._render_answer_actions(
@@ -704,7 +710,7 @@ class GameFlow:
         editing_key: str,
         storyteller_id: Optional[str],
     ) -> None:
-        submit_label = "Save changes" if current_player_id in submissions else "Submit answer"
+        submit_label = "Save changes" if current_player_id in (state.get("answer_drafts") or {}) else "Submit answer"
         suggestion_error_key = f"{room.room_code}_suggest_error_{current_player_id}"
         suggestion_error = st.session_state.pop(suggestion_error_key, None)
         if suggestion_error:
@@ -729,6 +735,7 @@ class GameFlow:
 
             submissions[current_player_id] = answer
             state["answer_submissions"] = submissions
+            (state.get("answer_drafts") or {}).pop(current_player_id, None)
             if len(submissions) >= len(room.players):
                 state["round_summary"] = None
                 if state.get("game_mode") == "two_player":
@@ -922,7 +929,10 @@ class GameFlow:
         if remaining_count > 0:
             label = "listener" if remaining_count == 1 else "listeners"
             message = f"Waiting for {remaining_count} {label} to choose…"
-            visual.waiting_card(message, "")
+            if current_player_id in listener_ids and current_player_id not in guesses:
+                st.info(message)
+            else:
+                visual.waiting_card(message, "")
         else:
             state["phase"] = "reveal"
             self._save_state(room, state, refresh_on_conflict=True)

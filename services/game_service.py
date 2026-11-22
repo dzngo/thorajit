@@ -62,6 +62,7 @@ class GameService:
             state.setdefault("departed_players", {})[player_id] = player.to_dict()
             state["reveal_ready"] = [pid for pid in state.get("reveal_ready", []) if pid != player_id]
             state.setdefault("saved_questions_by_player", {}).pop(player_id, None)
+            state.setdefault("answer_drafts", {}).pop(player_id, None)
             if ends_game:
                 state["phase"] = "results"
                 state["pending_reveals"] = {}
@@ -202,6 +203,7 @@ class GameService:
             "saved_questions_by_player": {},
             "question_events_pending": [],
             "answer_submissions": {},
+            "answer_drafts": {},
             "multiple_choice": {"options": []},
             "listener_guesses": {},
             "scores": _player_scores(room.players),
@@ -305,6 +307,7 @@ class GameService:
         state["question_candidates"] = []
         state["current_candidate_index"] = 0
         state["answer_submissions"] = {}
+        state["answer_drafts"] = {}
         state["multiple_choice"] = {"options": []}
         state["listener_guesses"] = {}
         state["invalidated_guesses"] = []
