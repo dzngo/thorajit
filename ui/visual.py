@@ -52,7 +52,16 @@ def apply_style() -> None:
     div.stButton button:hover {{ border-color: #6e7b17; color: #603112; background: #f7dfad; }}
     div.stButton > button[kind="primary"]:hover {{ background: #8d4815; color: #fff8ed; }}
     .stApp div.stButton > button:active:not(:disabled) {{ transform: translateY(3px); box-shadow: 0 1px 0 #4c3218; }}
+    .stApp div.stButton > button.thorajit-processing {{ pointer-events: none; opacity: .75; }}
+    .stApp div.stButton > button.thorajit-processing::before {{ content: ""; display: inline-block;
+      flex: 0 0 1.8rem; width: 1.8rem; height: 1rem; margin-right: .45rem;
+      background-image: radial-gradient(circle, #f3d28a 0 3px, transparent 3.5px),
+        radial-gradient(circle, #e9ad45 0 3px, transparent 3.5px),
+        radial-gradient(circle, #c67817 0 3px, transparent 3.5px);
+      background-size: .6rem 1rem; background-repeat: no-repeat; background-position: 0 0, .6rem 0, 1.2rem 0;
+      animation: action-loading-dots 1.2s ease-in-out infinite; }}
     @media (prefers-reduced-motion: reduce) {{ div.stButton > button {{ transition: none; }} }}
+    @media (prefers-reduced-motion: reduce) {{ .stApp div.stButton > button.thorajit-processing::before {{ animation: none; }} }}
     div.stButton button:focus-visible, .stApp input:focus-visible, .stApp textarea:focus-visible {{ outline: 3px solid #4a6414; outline-offset: 3px; }}
     [data-testid="stPopoverButton"] {{ min-height: 3.5rem; border-radius: 999px; font-weight: 900;
       font-size: 1.12rem; border: 2px solid #9d591e; background: #fff0d4; color: #603112;

@@ -12,6 +12,51 @@ export default function({data, parentElement, setStateValue, setTriggerValue}) {
   if (!instance) {
     instance = {socket: null, timer: null, token: null, closed: false};
     instances.set(parentElement, instance);
+    // Action buttons can take time to rerun. Show feedback immediately,
+    // then clear it when Streamlit's running indicator disappears.
+    let pending = null;
+    let seenRunning = false;
+    let fallback = null;
+    let maximum = null;
+    const clearPending = () => {
+      clearTimeout(fallback);
+      clearTimeout(maximum);
+      if (pending) {
+        pending.classList.remove('thorajit-processing');
+        pending.removeAttribute('aria-busy');
+      }
+      pending = null;
+      seenRunning = false;
+    };
+    const isRunning = () => !!document.querySelector('[data-testid="stStatusWidgetRunningIcon"]');
+    const observer = new MutationObserver(() => {
+      if (!pending) return;
+      if (!pending.isConnected) { clearPending(); return; }
+      if (isRunning()) seenRunning = true;
+      else if (seenRunning) clearPending();
+    });
+    observer.observe(document.body, {childList: true, subtree: true});
+    const handleClick = event => {
+      const button = event.target.closest?.('div.stButton > button');
+      if (!button || button.disabled || button.classList.contains('thorajit-processing')) return;
+      // Panel toggles are immediate UI controls; popover triggers are also
+      // excluded because they are not Streamlit action buttons.
+      if (button.closest('.st-key-game_panel_buttons, [class*="_close_scores"], [class*="_close_settings"]')) return;
+      clearPending();
+      pending = button;
+      button.classList.add('thorajit-processing');
+      button.setAttribute('aria-busy', 'true');
+      seenRunning = isRunning();
+      // No running indicator means an immediate interaction or validation.
+      fallback = setTimeout(() => { if (!seenRunning && !isRunning()) clearPending(); }, 1500);
+      maximum = setTimeout(clearPending, 120000);
+    };
+    document.addEventListener('click', handleClick, true);
+    instance.cleanupFeedback = () => {
+      document.removeEventListener('click', handleClick, true);
+      observer.disconnect();
+      clearPending();
+    };
     let stored = null;
     try { stored = localStorage.getItem('thorajit.reconnect'); } catch (_) {}
     setStateValue('credential', stored || '');
@@ -52,6 +97,7 @@ export default function({data, parentElement, setStateValue, setTriggerValue}) {
     instance.closed = true;
     clearTimeout(instance.timer);
     if (instance.socket) { instance.socket.onclose = null; instance.socket.close(); }
+    instance.cleanupFeedback();
     instances.delete(parentElement);
   };
 }
