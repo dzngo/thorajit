@@ -15,6 +15,9 @@ class WaitingUITests(unittest.TestCase):
     @patch('ui.game_flow.st')
     def test_translation_fallback_is_visible_to_listeners(self, st, show_room, show_scores):
         st.button.return_value = False
+        st.columns.return_value = [Mock(), Mock()]
+        for column in st.columns.return_value:
+            column.button.return_value = False
         flow = GameFlow(Mock(), Mock(), Mock())
         flow._render_leave_game = Mock()
         room = SimpleNamespace(room_code='TEST', players=[])
@@ -35,6 +38,8 @@ flow._finalize_results = lambda *args, **kwargs: st.session_state.update(ended=T
 with patch('ui.game_flow.common.show_room_summary'), patch('ui.game_flow.common.show_player_scores'):
     flow._render_board(room, {'scores':{}}, None, 'Host', True, False)
 ''').run()
+        self.assertEqual(app.button(key='TEST_open_scores').label, ':material/leaderboard:')
+        app.button(key='TEST_open_settings').click().run()
         self.assertNotIn('ended', app.session_state)
         app.button(key='host_end_game').click().run()
         self.assertTrue(app.session_state.ended)

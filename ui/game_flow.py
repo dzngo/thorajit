@@ -239,26 +239,40 @@ class GameFlow:
             role = f"You're a Listener · Storyteller: {storyteller_name}"
         else:
             role = f"Storyteller: {storyteller_name}"
+        panel_key = f"{room.room_code}_game_panel"
+        panel = st.session_state.get(panel_key)
+        with st.container(key="game_panel_buttons"):
+            score_button, settings_button = st.columns(2)
+            if score_button.button(":material/leaderboard:", key=f"{room.room_code}_open_scores",
+                                   width="stretch"):
+                st.session_state[panel_key] = None if panel == "scores" else "scores"
+                common.rerun()
+            if settings_button.button(":material/settings:", key=f"{room.room_code}_open_settings",
+                                      width="stretch"):
+                st.session_state[panel_key] = None if panel == "settings" else "settings"
+                common.rerun()
+        if panel == "scores":
+            with st.container(border=True, key="card_game_scoreboard"):
+                st.markdown("### Scoreboard")
+                scores = state.get("scores") or {}
+                ordered = sorted(room.players, key=lambda player: (-scores.get(player.player_id, 0), player.name.casefold()))
+                common.show_player_scores(ordered, scores, storyteller_id=self._current_storyteller_id(state))
+                if st.button("Refresh game view", key=f"{room.room_code}_refresh_view"):
+                    common.rerun()
+        elif panel == "settings":
+            with st.container(border=True, key="card_game_settings"):
+                common.show_room_summary(room, show_mode=False)
+                if is_host:
+                    with st.popover("End game", key="end_game_popover", width="stretch"):
+                        st.caption("End the game and show the current scores? An unfinished round will not be scored.")
+                        if st.button("End game now", key="host_end_game", width="stretch"):
+                            self._finalize_results(room, state, manual=True)
+                self._render_leave_game(room)
         st.html(f'<div class="round-context"><span class="round-pill">Round {round_number}</span>'
                 f'<span class="role-pill">{html.escape(role)}</span></div>')
         if (state.get("phase") in {"answer_entry", "guessing", "judgment", "reveal"}
                 and (state.get("question") or {}).get("translation_fallback")):
             st.info("This question is shown in English because translation was unavailable or could not preserve player names.")
-        with st.expander("Room and scores"):
-            common.show_room_summary(room)
-            st.markdown("### Scoreboard")
-            scores = state.get("scores") or {}
-            ordered = sorted(room.players, key=lambda player: (-scores.get(player.player_id, 0), player.name.casefold()))
-            common.show_player_scores(ordered, scores, storyteller_id=self._current_storyteller_id(state))
-
-            if st.button("Refresh game view", key=f"{room.room_code}_refresh_view"):
-                common.rerun()
-            if is_host:
-                with st.popover("End game", width="stretch"):
-                    st.caption("End the game and show the current scores? An unfinished round will not be scored.")
-                    if st.button("End game now", key="host_end_game", width="stretch"):
-                        self._finalize_results(room, state, manual=True)
-            self._render_leave_game(room)
 
     def _render_leave_game(self, room: Room) -> None:
         player_id = (st.session_state.get("player_profile") or {}).get("player_id")
@@ -555,8 +569,9 @@ class GameFlow:
         if not submitted:
             st.session_state.pop(editing_key, None)
         is_editing = not submitted or bool(st.session_state.get(editing_key, False))
-        st.header("Your answer" if is_editing else "Answer submitted")
-        visual.question_card(question)
+        st.header("Question")
+        visual.question_context(self._current_theme(state), self._current_level_value(state))
+        self._render_save_question(room, state, storyteller_id, current_player_id)
 
         if not current_player_id:
             st.info("Waiting for your player session...")
@@ -579,9 +594,10 @@ class GameFlow:
             else:
                 st.write("Submit one plausible answer. Do not reveal whether it is yours.")
 
+        st.header("Your answer" if is_editing else "Answer submitted")
         if is_editing:
             with st.container(border=True, key=f"card_answer_{room.room_code}"):
-                st.text_area("Your answer", key=input_key, placeholder="Type your answer")
+                st.text_area("Your answer", key=input_key, placeholder="Type your answer", label_visibility="collapsed")
         else:
             visual.answer_card("Your answer", submitted)
 
@@ -605,7 +621,6 @@ class GameFlow:
                 storyteller_id=storyteller_id,
             )
 
-        self._render_save_question(room, state, storyteller_id, current_player_id)
         pending_count = sum(player.player_id not in submissions for player in room.players)
         if pending_count > 0:
             label = "player" if pending_count == 1 else "players"
@@ -716,7 +731,7 @@ class GameFlow:
         st.header("Your decision" if self._storyteller_can_act(storyteller_id, current_player_id)
                   else "Waiting for the Storyteller")
         question = (state.get("question") or {}).get("question", "")
-        visual.question_card(question)
+        visual.question_context(self._current_theme(state), self._current_level_value(state))
         self._render_save_question(room, state, storyteller_id, current_player_id)
         if not self._storyteller_can_act(storyteller_id, current_player_id):
             answer = (state.get("answer_submissions") or {}).get(current_player_id)
@@ -751,9 +766,11 @@ class GameFlow:
     ) -> None:
         st.header("The reveal")
         question = (state.get("question") or {}).get("question", "")
-        visual.question_card(question)
+        visual.question_context(self._current_theme(state), self._current_level_value(state))
         if not held:
             self._render_save_question(room, state, storyteller_id, current_player_id)
+        else:
+            visual.question_card(question)
         summary = state.get("round_summary") or {}
         if not summary:
             st.warning("This round has not been judged.")
@@ -801,7 +818,7 @@ class GameFlow:
             heading = "Find the Storyteller's answer"
         st.header(heading)
         question = (state.get("question") or {}).get("question", "")
-        visual.question_card(question)
+        visual.question_context(self._current_theme(state), self._current_level_value(state))
         self._render_save_question(room, state, storyteller_id, current_player_id)
 
         options = state.get("multiple_choice", {}).get("options", [])
@@ -903,9 +920,11 @@ class GameFlow:
     ) -> None:
         st.header("The reveal")
         question = (state.get("question") or {}).get("question", "")
-        visual.question_card(question)
+        visual.question_context(self._current_theme(state), self._current_level_value(state))
         if not held:
             self._render_save_question(room, state, storyteller_id, current_player_id)
+        else:
+            visual.question_card(question)
 
         options = (state.get("multiple_choice") or {}).get("options", [])
         lookup = self._player_lookup(room)
@@ -1631,32 +1650,34 @@ class GameFlow:
     def _render_save_question(
         self, room: Room, state: Dict[str, object], storyteller_id: Optional[str], player_id: Optional[str]
     ) -> None:
-        if not player_id or player_id == storyteller_id:
-            return
+        toast_key = f"{room.room_code}_question_saved_toast_{player_id}"
+        toast_message = st.session_state.pop(toast_key, None)
+        saved_toast = st.empty()
+        removed_toast = st.empty()
+        if toast_message == "saved":
+            saved_toast.toast("Question saved for your next turn!", icon=":material/bookmark:")
+        elif toast_message == "removed":
+            removed_toast.toast("Question removed from your saved list.", icon=":material/bookmark:")
         question = state.get("question") or {}
-        if not question.get("question_id"):
+        text = str(question.get("question") or "")
+        if not player_id or player_id == storyteller_id or not question.get("question_id"):
+            visual.question_card(text)
             return
         saved = state.setdefault("saved_questions_by_player", {}).setdefault(player_id, [])
         round_key = str(state.get("round", 1))
         existing = next((item for item in saved if item.get("saved_round") == round_key), None)
-        if existing:
-            if st.button(
-                "Saved for your turn — Undo",
-                key=f"unsave_{room.room_code}_{player_id}",
-                help="Remove this question from your saved list.",
-                icon=":material/bookmark_added:",
+        with st.popover(text, key=f"question_card_menu_{room.room_code}_{player_id}", width="stretch"):
+            clicked = st.button(
+                "Remove saved question" if existing else "Save this question for my next turn",
+                key=f"{'unsave' if existing else 'save'}_{room.room_code}_{player_id}",
+                icon=":material/bookmark_added:" if existing else ":material/bookmark:",
                 width="stretch",
-            ):
-                saved.remove(existing)
-                self._queue_event(state, existing.get("question_id"), "unsaved")
-                self._save_state(room, state)
-        elif st.button(
-            "Save question for my turn",
-            key=f"save_{room.room_code}_{player_id}",
-            help="Keep this question in your saved list so you can choose it on a later turn as Storyteller. You can save several questions.",
-            icon=":material/bookmark:",
-            width="stretch",
-        ):
+            )
+        if clicked and existing:
+            saved.remove(existing)
+            self._queue_event(state, existing.get("question_id"), "unsaved")
+            self._save_state(room, state, toast_key=toast_key, toast_message="removed")
+        elif clicked:
             saved.append(
                 {
                     "save_id": str(uuid.uuid4()),
@@ -1673,7 +1694,7 @@ class GameFlow:
                 }
             )
             self._queue_event(state, question["question_id"], "saved")
-            self._save_state(room, state)
+            self._save_state(room, state, toast_key=toast_key, toast_message="saved")
 
     def _prepare_question(
         self, room: Room, state: Dict[str, object], prefill_key: str, *, notify: bool, force: bool = False
@@ -1831,11 +1852,14 @@ class GameFlow:
             st.stop()
 
     def _save_state(self, room: Room, state: Dict[str, object], *, clear_on_success: tuple[str, ...] = (),
-                    refresh_on_conflict: bool = False) -> None:
+                    refresh_on_conflict: bool = False, toast_key: Optional[str] = None,
+                    toast_message: Optional[str] = None) -> None:
         self._store_state(room, state, refresh_on_conflict=refresh_on_conflict)
         for key in clear_on_success:
             st.session_state.pop(key, None)
         self._flush_events(room, state)
+        if toast_key and toast_message:
+            st.session_state[toast_key] = toast_message
         common.rerun()
 
     def _is_duplicate_answer(

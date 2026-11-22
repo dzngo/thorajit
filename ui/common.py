@@ -35,7 +35,8 @@ def rerun() -> None:
         getattr(st, "experimental_rerun")()
 
 
-def show_room_summary(room: Room, display_llm: bool = False, *, show_private_name: bool = False) -> None:
+def show_room_summary(room: Room, display_llm: bool = False, *, show_private_name: bool = False,
+                      show_mode: bool = True) -> None:
     display_name = room.name
     settings = room.settings
     language_name = SUPPORTED_LANGUAGES.get(settings.language.lower(), settings.language.upper())
@@ -51,8 +52,9 @@ def show_room_summary(room: Room, display_llm: bool = False, *, show_private_nam
         ("Players", str(count)),
         ("Status", "In game" if room.started else "Lobby"),
         ("Target score", str(settings.max_score)),
-        ("Mode", "Two players" if mode == "two_player" else "Standard"),
     ])
+    if show_mode:
+        rows.append(("Mode", "Two players" if mode == "two_player" else "Standard"))
     if display_llm:
         rows.append(("Assistant", SUPPORTED_LLM_MODELS.get(settings.llm_model, settings.llm_model)))
     details = "".join(

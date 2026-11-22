@@ -38,7 +38,7 @@ Celebrate how well friends “get” one another.
 3. Other players select the room by its name, or by its code for a private room.
 4. Minimum players to start: **2**. Exactly two players use two-player mode; three or more use standard mode.
 5. Storyteller order is randomized once at game start, then rotates every round.
-6. During a game, players can leave permanently from **Room and scores**. If their departure would leave fewer than two players, or reduce a standard game to two, they must confirm that the game will end for everyone. Otherwise the remaining players continue; if the host leaves, another player becomes host.
+6. During a game, players can leave permanently from the **Game settings** button. If their departure would leave fewer than two players, or reduce a standard game to two, they must confirm that the game will end for everyone. Otherwise the remaining players continue; if the host leaves, another player becomes host.
 
 ### 1.3 Turn Structure
 In standard mode, each round follows this flow:

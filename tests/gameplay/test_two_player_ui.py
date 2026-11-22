@@ -37,6 +37,20 @@ elif state['phase'] == 'reveal':
 
 
 class TwoPlayerUITests(unittest.TestCase):
+    def test_confirmed_question_context_is_visible_to_both_players_in_each_phase(self):
+        app = AppTest.from_string(APP).run()
+        for phase in ('answer_entry', 'judgment', 'reveal'):
+            for player in ('a', 'b'):
+                with self.subTest(phase=phase, player=player):
+                    app.session_state.game['phase'] = phase
+                    app.session_state.game['answer_submissions'] = {'a': 'Tea', 'b': 'Coffee'}
+                    app.session_state.game['round_summary'] = {'correct': True, 'listener_id': 'b', 'points': 3}
+                    app.session_state.player = player
+                    app.run()
+                    self.assertFalse(app.exception)
+                    self.assertTrue(any('Friends 🤝 · Deep' in element.value for element in app.get('html')))
+                    self.assertNotIn('Change', [button.label for button in app.button])
+
     @patch('ui.game_flow.common.rerun')
     @patch('ui.game_flow.st')
     def test_answer_suggestion_uses_the_storyteller_name(self, st, rerun):
@@ -56,10 +70,12 @@ class TwoPlayerUITests(unittest.TestCase):
 
     def test_submitted_answer_waits_and_can_be_modified(self):
         app = AppTest.from_string(APP).run()
+        self.assertEqual([item.value for item in app.header][:2], ['Question', 'Your answer'])
         app.text_area[0].input('Coffee').run()
         next(button for button in app.button if button.label == 'Submit answer').click().run()
         app.run()
         self.assertIn('Answer submitted', [item.value for item in app.header])
+        self.assertEqual([item.value for item in app.header][:2], ['Question', 'Answer submitted'])
         self.assertEqual(len(app.text_area), 0)
         self.assertTrue(any('Coffee' in item.value and 'Your answer' in item.value for item in app.get('html')))
         self.assertTrue(any('Waiting for 1 player to answer' in item.value for item in app.get('html')))

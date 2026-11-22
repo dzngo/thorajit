@@ -54,6 +54,23 @@ def apply_style() -> None:
     .stApp div.stButton > button:active:not(:disabled) {{ transform: translateY(3px); box-shadow: 0 1px 0 #4c3218; }}
     @media (prefers-reduced-motion: reduce) {{ div.stButton > button {{ transition: none; }} }}
     div.stButton button:focus-visible, .stApp input:focus-visible, .stApp textarea:focus-visible {{ outline: 3px solid #4a6414; outline-offset: 3px; }}
+    .st-key-end_game_popover [data-testid="stPopoverButton"],
+    .st-key-leave_game_popover [data-testid="stPopoverButton"] {{ min-height: 3.5rem; border-radius: 999px;
+      font-weight: 900; font-size: 1.12rem; border: 2px solid; color: #fff0d4; }}
+    .st-key-end_game_popover [data-testid="stPopoverButton"] {{ background: #45372f; border-color: #30251f;
+      box-shadow: 0 4px 0 #30251f; }}
+    .st-key-leave_game_popover [data-testid="stPopoverButton"] {{ background: #ad4438; border-color: #7e2d26;
+      box-shadow: 0 4px 0 #7e2d26; }}
+    .st-key-confirm_leave_game div.stButton > button {{ background: #ad4438; border-color: #7e2d26;
+      color: #fff0d4; box-shadow: 0 4px 0 #7e2d26; }}
+    .st-key-confirm_leave_game div.stButton > button:hover {{ background: #92352d;
+      border-color: #6f251f; color: #fff0d4; }}
+    .st-key-end_game_popover [data-testid="stPopoverButton"] p,
+    .st-key-leave_game_popover [data-testid="stPopoverButton"] p {{ color: inherit; font-size: 1.15rem; font-weight: 900; }}
+    .st-key-end_game_popover [data-testid="stPopoverButton"]:hover {{ background: #30251f; border-color: #211914; color: #fff0d4; }}
+    .st-key-leave_game_popover [data-testid="stPopoverButton"]:hover {{ background: #92352d; border-color: #6f251f; color: #fff0d4; }}
+    .st-key-end_game_popover [data-testid="stPopoverButton"] [aria-hidden="true"],
+    .st-key-leave_game_popover [data-testid="stPopoverButton"] [aria-hidden="true"] {{ display: none; }}
     [data-baseweb="input"], [data-baseweb="textarea"], [data-baseweb="select"] > div {{ background: #fff0d9 !important; border: 2px solid #a05f26 !important; border-radius: 24px !important; }}
     [data-baseweb="input"] input, [data-baseweb="textarea"] textarea {{ color: #603112 !important; }}
     [data-testid="stTextInput"] input, [data-testid="stTextArea"] textarea {{ background: #fff0d9 !important; border: 0 !important; border-radius: 22px !important; min-height: 3rem; padding: .7rem 1rem; }}
@@ -70,6 +87,8 @@ def apply_style() -> None:
     .st-key-welcome h2 {{ padding: 1.45rem 1.25rem; border-radius: 42% 46% 40% 44% / 48% 44% 52% 46%;
       background: #ffedcf; font-size: clamp(1.65rem, 7vw, 2.1rem); }}
     .st-key-welcome .stButton > button {{ min-height: 5rem; border-width: 3px; }}
+    .st-key-game_panel_buttons [data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap !important; }}
+    .st-key-game_panel_buttons [data-testid="stColumn"] {{ min-width: 0 !important; }}
     .st-key-welcome .stButton > button p {{ font-size: 1.6rem; }}
     .st-key-welcome .st-key-entry_join button {{ border-color: #83951b; box-shadow: 0 5px 0 #586711;
       background: linear-gradient(165deg, #fff1d8 75%, #dae5a0 75%); }}
@@ -122,6 +141,14 @@ def apply_style() -> None:
       padding: 2rem 1.4rem; margin: .5rem 0 1rem; text-align: center; overflow-wrap: anywhere;
       color: #603112; font-size: clamp(1.45rem, 5vw, 2rem); line-height: 1.2; font-weight: 900;
       box-shadow: 0 5px 0 #957a4b33; }}
+    [class*="st-key-question_card_menu_"] [data-testid="stPopoverButton"] {{ background: #fff0d4 !important;
+      border: 2px solid #f6e2bd !important; border-radius: 28px !important;
+      padding: 2rem 1.4rem !important; margin: .5rem 0 1rem; min-height: 0;
+      box-shadow: 0 5px 0 #957a4b33 !important; color: #603112 !important; }}
+    [class*="st-key-question_card_menu_"] [data-testid="stPopoverButton"] p {{ color: #603112 !important;
+      font-size: clamp(1.45rem, 5vw, 2rem) !important; line-height: 1.2; font-weight: 900 !important;
+      text-align: center; overflow-wrap: anywhere; }}
+    [class*="st-key-question_card_menu_"] [data-testid="stPopoverButton"] [aria-hidden="true"] {{ display: none; }}
     .st-key-question_setup {{ background: #fff0d4; border: 2px solid #f6e2bd; border-radius: 999px;
       padding: .45rem .55rem .45rem 1rem; box-shadow: 0 5px 0 #957a4b33; }}
     .st-key-question_setup [data-testid="stHorizontalBlock"] {{ flex-wrap: nowrap !important; }}
@@ -130,6 +157,8 @@ def apply_style() -> None:
     .question-setup-text {{ display: flex; align-items: center; gap: .65rem; min-width: 0;
       color: #603112; font-size: clamp(1rem, 3.6vw, 1.2rem); font-weight: 900; line-height: 1.2;
       overflow-wrap: anywhere; }}
+    .question-context {{ background: #fff0d4; border: 2px solid #f6e2bd; border-radius: 999px;
+      padding: .75rem 1rem; margin: .4rem 0 .6rem; box-shadow: 0 5px 0 #957a4b33; }}
     .st-key-question_setup div.stButton button {{ min-height: 2.6rem; padding: .4rem .65rem;
       background: #dce5a6; border: 0; color: #354300; box-shadow: none; }}
     .st-key-question_setup div.stButton button p {{ font-size: 1rem; }}
@@ -304,6 +333,12 @@ def render_brand() -> None:
 def question_card(question: str) -> None:
     """Display the current prompt consistently across the round."""
     st.html(f'<div class="question-card" role="group" aria-label="Question">{html.escape(str(question))}</div>')
+
+
+def question_context(theme: str, level: str) -> None:
+    """Display the confirmed round's theme and level without editing controls."""
+    text = f"{theme} · {level.title()}"
+    st.html(f'<div class="question-context"><div class="question-setup-text">{html.escape(text)}</div></div>')
 
 
 def waiting_card(title: str, detail: str) -> None:
