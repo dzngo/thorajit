@@ -36,7 +36,7 @@ def rerun() -> None:
 
 
 def show_room_summary(room: Room, display_llm: bool = False, *, show_private_name: bool = False,
-                      show_mode: bool = True) -> None:
+                      show_mode: bool = True, show_room_code: bool = False) -> None:
     display_name = room.name
     settings = room.settings
     language_name = SUPPORTED_LANGUAGES.get(settings.language.lower(), settings.language.upper())
@@ -46,7 +46,7 @@ def show_room_summary(room: Room, display_llm: bool = False, *, show_private_nam
     count = len(room.players)
     mode = (room.game_state or {}).get("game_mode") if room.started else ("two_player" if count == 2 else "standard")
     rows = [("Room", f"{privacy_label} · {language_display}")]
-    if room.is_private and show_private_name:
+    if room.is_private and (show_private_name or show_room_code):
         rows.append(("Room code", room.room_code))
     rows.extend([
         ("Players", str(count)),

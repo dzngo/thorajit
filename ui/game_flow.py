@@ -283,7 +283,7 @@ class GameFlow:
                     common.rerun()
         elif panel == "settings":
             with st.container(border=True, key="card_game_settings"):
-                common.show_room_summary(room, show_mode=False)
+                common.show_room_summary(room, show_mode=False, show_room_code=True)
                 if is_host:
                     with st.popover("End game", key="end_game_popover", width="stretch"):
                         st.caption("End the game and show the current scores? An unfinished round will not be scored.")
