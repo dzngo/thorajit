@@ -69,7 +69,7 @@ def _timestamp_slug() -> str:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Measure LLM latency for Who Gets You question generation.",
+        description="Measure LLM latency for Thorajit question generation.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(

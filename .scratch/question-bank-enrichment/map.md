@@ -9,7 +9,7 @@ Produce an implementation-ready product and technical specification for an offli
 
 ## Notes
 
-- Domain: question quality and corpus construction for "Who Gets You?"; use the canonical language in [`CONTEXT.md`](../../CONTEXT.md).
+- Domain: question quality and corpus construction for "Thorajit"; use the canonical language in [`CONTEXT.md`](../../CONTEXT.md).
 - The Question Bank stores reusable full Canonical Questions; it is distinct from the Question Angle Catalog.
 - Question quality includes separate relations for Question Aspect, Semantic Scenario, Question Perspective, Answer Space, and Wording Pattern.
 - The normal enrichment path is fully automatic. Human-labelled benchmarks and periodic audits are allowed, and uncertain proposals go to the Human Review Queue with their evidence.

@@ -1,4 +1,4 @@
-"""Core dataclasses and enums representing the Who Gets You pre-game domain."""
+"""Core dataclasses and enums representing the Thorajit pre-game domain."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
