@@ -68,7 +68,7 @@ with patch('ui.game_flow.common.show_room_summary'), patch('ui.game_flow.common.
         flow = GameFlow(Mock(), Mock(), Mock())
         room = SimpleNamespace(players=[SimpleNamespace(player_id='a', name='Alex')])
         flow._render_theme_phase(room, {}, 'a', 'b')
-        waiting_card.assert_called_once_with('Alex is choosing a question', 'Hang tight while the round gets ready.')
+        waiting_card.assert_called_once_with('Alex is choosing a question', '')
 
     @patch('ui.game_flow.st')
     def test_storyteller_watches_reveal_for_host_advancing_turn(self, st):

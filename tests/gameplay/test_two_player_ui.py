@@ -55,7 +55,7 @@ class TwoPlayerUITests(unittest.TestCase):
     @patch('ui.game_flow.st')
     def test_answer_suggestion_uses_the_storyteller_name(self, st, rerun):
         st.session_state = {}
-        st.button.side_effect = lambda _label, **kwargs: '_suggest_answer_' in kwargs.get('key', '')
+        st.empty.return_value.button.side_effect = lambda _label, **kwargs: '_suggest_answer_' in kwargs.get('key', '')
         llm = Mock()
         llm.suggest_answer.return_value = SimpleNamespace(answer='Coffee')
         flow = GameFlow(Mock(), Mock(), llm)

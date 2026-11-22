@@ -54,6 +54,58 @@ def apply_style() -> None:
     .stApp div.stButton > button:active:not(:disabled) {{ transform: translateY(3px); box-shadow: 0 1px 0 #4c3218; }}
     @media (prefers-reduced-motion: reduce) {{ div.stButton > button {{ transition: none; }} }}
     div.stButton button:focus-visible, .stApp input:focus-visible, .stApp textarea:focus-visible {{ outline: 3px solid #4a6414; outline-offset: 3px; }}
+    [data-testid="stPopoverButton"] {{ min-height: 3.5rem; border-radius: 999px; font-weight: 900;
+      font-size: 1.12rem; border: 2px solid #9d591e; background: #fff0d4; color: #603112;
+      box-shadow: 0 4px 0 #84512c; }}
+    [data-testid="stPopoverButton"] p {{ color: inherit; font-size: 1.15rem; font-weight: 900; }}
+    [data-testid="stPopoverButton"]:hover {{ border-color: #6e7b17; color: #603112; background: #f7dfad; }}
+    [data-testid="stPopoverButton"]:focus-visible {{ outline: 3px solid #4a6414; outline-offset: 3px; }}
+    [data-testid="stPopoverButton"] > div > [aria-hidden="true"] {{ display: none; }}
+    .st-key-answer_host_controls [data-testid="stPopoverButton"],
+    .st-key-guess_host_controls [data-testid="stPopoverButton"] {{ background: #45372f; border-color: #30251f;
+      color: #fff0d4; box-shadow: 0 4px 0 #30251f; }}
+    .st-key-answer_host_controls [data-testid="stPopoverButton"]:hover,
+    .st-key-guess_host_controls [data-testid="stPopoverButton"]:hover {{ background: #30251f;
+      border-color: #211914; color: #fff0d4; }}
+    [class*="_question_loading"] [data-testid="stIconMaterial"],
+    [class*="_confirm_loading"] [data-testid="stIconMaterial"],
+    [class*="_suggest_loading_"] [data-testid="stIconMaterial"] {{ display: none; }}
+    [class*="_question_loading"] button::before,
+    [class*="_confirm_loading"] button::before,
+    [class*="_suggest_loading_"] button::before {{ content: ""; display: inline-block; flex: 0 0 1.8rem;
+      width: 1.8rem; height: 1rem; margin-right: .45rem;
+      background-image: radial-gradient(circle, #f3d28a 0 3px, transparent 3.5px),
+        radial-gradient(circle, #e9ad45 0 3px, transparent 3.5px),
+        radial-gradient(circle, #c67817 0 3px, transparent 3.5px);
+      background-size: .6rem 1rem; background-repeat: no-repeat; background-position: 0 0, .6rem 0, 1.2rem 0;
+      animation: action-loading-dots 1.2s ease-in-out infinite; }}
+    @keyframes action-loading-dots {{
+      0%, 100% {{ background-position: 0 0, .6rem 0, 1.2rem 0; }}
+      25% {{ background-position: 0 -.25rem, .6rem 0, 1.2rem 0; }}
+      40% {{ background-position: 0 0, .6rem -.25rem, 1.2rem 0; }}
+      55% {{ background-position: 0 0, .6rem 0, 1.2rem -.25rem; }}
+      70% {{ background-position: 0 0, .6rem 0, 1.2rem 0; }} }}
+    @media (prefers-reduced-motion: reduce) {{ [class*="_question_loading"] button::before,
+      [class*="_confirm_loading"] button::before, [class*="_suggest_loading_"] button::before {{ animation: none; }} }}
+    [class*="_busy"] div.stButton > button:disabled,
+    [class*="_question_loading"] div.stButton > button:disabled,
+    [class*="_suggest_loading_"] div.stButton > button:disabled {{ opacity: .72; background: #fff0d4 !important;
+      border-color: #9d591e !important; color: #603112 !important; box-shadow: 0 4px 0 #84512c !important; }}
+    [class*="_confirm_busy"] div.stButton > button:disabled,
+    [class*="_confirm_loading"] div.stButton > button:disabled,
+    [class*="_submit_suggest_busy_"] div.stButton > button:disabled {{ opacity: .72; background: #63750c !important;
+      border-color: #4e5f08 !important; color: #fff0d4 !important; box-shadow: 0 4px 0 #4d5c09 !important; }}
+    .st-key-question_setup [class*="_theme_busy"] div.stButton > button:disabled,
+    .st-key-question_setup [class*="_theme_during_confirmation_busy"] div.stButton > button:disabled,
+    .st-key-question_setup [class*="_theme_loading"] div.stButton > button:disabled {{
+      opacity: .72; background: #dce5a6 !important; border: 0 !important; color: #354300 !important; box-shadow: none !important; }}
+    .st-key-question_setup [class*="_theme_loading"] button::before {{ content: ""; display: inline-block;
+      flex: 0 0 1.8rem; width: 1.8rem; height: 1rem; margin-right: .3rem;
+      background-image: radial-gradient(circle, #f3d28a 0 3px, transparent 3.5px),
+        radial-gradient(circle, #e9ad45 0 3px, transparent 3.5px), radial-gradient(circle, #c67817 0 3px, transparent 3.5px);
+      background-size: .6rem 1rem; background-repeat: no-repeat; background-position: 0 0, .6rem 0, 1.2rem 0;
+      animation: action-loading-dots 1.2s ease-in-out infinite; }}
+    @media (prefers-reduced-motion: reduce) {{ .st-key-question_setup [class*="_theme_loading"] button::before {{ animation: none; }} }}
     .st-key-end_game_popover [data-testid="stPopoverButton"],
     .st-key-leave_game_popover [data-testid="stPopoverButton"] {{ min-height: 3.5rem; border-radius: 999px;
       font-weight: 900; font-size: 1.12rem; border: 2px solid; color: #fff0d4; }}
@@ -118,11 +170,11 @@ def apply_style() -> None:
       max-width: 100%; overflow-wrap: anywhere; }}
     .round-pill {{ background: #986137; color: #fff0d4; }}
     .role-pill {{ background: #f7dfad; color: #603112; }}
-    .waiting-card {{ text-align: center; color: #603112; }}
-    .waiting-title {{ background: #fff0d4; border-radius: 28px; padding: 2rem 1.4rem;
-      font-size: clamp(1.45rem, 5vw, 2rem); line-height: 1.2; font-weight: 900; overflow-wrap: anywhere;
-      box-shadow: 0 5px 0 #957a4b33; }}
-    .waiting-detail {{ padding: 1.5rem .5rem .8rem; font-size: 1.1rem; }}
+    .waiting-card {{ text-align: center; color: #603112; background: #fff0d4; border-radius: 28px;
+      padding: .5rem 1rem; box-shadow: 0 5px 0 #957a4b33; }}
+    .waiting-title {{ padding: 1rem .3rem .4rem; font-size: clamp(1.45rem, 5vw, 2rem);
+      line-height: 1.2; font-weight: 900; overflow-wrap: anywhere; }}
+    .waiting-detail {{ padding: .5rem .5rem .4rem; font-size: 1.1rem; }}
     .waiting-dots {{ display: flex; justify-content: center; gap: .8rem; padding: .5rem; }}
     .waiting-dots span {{ width: .8rem; height: .8rem; border-radius: 50%; background: #e9ad45;
       animation: waiting-bounce 1.2s ease-in-out infinite; }}
@@ -131,8 +183,6 @@ def apply_style() -> None:
     .waiting-dots span:last-child {{ background: #c67817; animation-delay: .3s; }}
     @keyframes waiting-bounce {{ 0%, 60%, 100% {{ transform: translateY(0); }} 30% {{ transform: translateY(-.3rem); }} }}
     @media (prefers-reduced-motion: reduce) {{ .waiting-dots span {{ animation: none; }} }}
-    .waiting-card.compact {{ background: #fff0d4; border-radius: 28px; padding: .5rem 1rem; box-shadow: 0 5px 0 #957a4b33; }}
-    .waiting-card.compact .waiting-title {{ background: transparent; box-shadow: none; padding: 1rem .3rem .4rem; }}
     .answer-summary {{ background: #fff0d4; border: 2px solid #e3c99c; border-radius: 24px;
       padding: 1rem 1.2rem; margin: .5rem 0 1rem; overflow-wrap: anywhere; }}
     .answer-summary-label {{ font-weight: 900; margin-bottom: .35rem; }}
@@ -234,8 +284,10 @@ def apply_style() -> None:
       50% {{ opacity: .85; }} 100% {{ opacity: 0; transform: translateY(-.8rem) scale(1.1); }} }}
     @media (prefers-reduced-motion: reduce) {{ .thor-moment .thor-moment-shape,
       .thor-moment .thor-moment-spark {{ animation: none; opacity: 0; }} }}
-    .vote-columns {{ display: flex; gap: 1rem; overflow-x: auto; padding: .5rem .1rem 1rem; }}
-    .vote-columns:has(.thor-moment) {{ padding-top: 1.8rem; }}
+    .st-key-question_toast_slots,
+    [data-testid="stLayoutWrapper"]:has(> .st-key-question_toast_slots) {{ display: none; }}
+    .vote-columns {{ display: flex; gap: 1rem; overflow-x: auto; padding: .25rem .1rem .4rem; }}
+    .vote-columns:has(.thor-moment) {{ padding-top: .8rem; }}
     .vote-columns:focus-visible, .results-rank-columns:focus-visible {{ outline: 3px solid #4a6414; outline-offset: 3px; }}
     .vote-column {{ flex: 1 0 100%; min-width: 0; }}
     .vote-columns.multiple .vote-column {{ flex-basis: calc(50% - .5rem); min-width: 13rem; }}

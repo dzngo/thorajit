@@ -68,7 +68,7 @@ class GameFlow:
             return
         held_reveal = (room.game_state or {}).get("pending_reveals", {}).get(current_player_id)
         if (not room.started or not room.game_state) and not held_reveal:
-            st.info("Waiting for the host to start the game...")
+            visual.waiting_card("Waiting for the host to start…", "")
             if st.button("Back to entry"):
                 st.session_state["route"] = "entry"
                 common.rerun()
@@ -76,7 +76,7 @@ class GameFlow:
 
         state = copy.deepcopy(room.game_state or {})
         if not state:
-            st.info("Initializing game state…")
+            visual.waiting_card("Getting the game ready…", "")
             return
 
         if room.started:
@@ -317,7 +317,7 @@ class GameFlow:
     def _render_question_wait(self, room: Room, storyteller_id: Optional[str]) -> None:
         storyteller = self._player_lookup(room).get(storyteller_id)
         name = storyteller.name if storyteller else "The Storyteller"
-        visual.waiting_card(f"{name} is choosing a question", "Hang tight while the round gets ready.")
+        visual.waiting_card(f"{name} is choosing a question", "")
 
     def _render_saved_questions_phase(
         self,
@@ -419,6 +419,9 @@ class GameFlow:
             return
 
         st.header("Your question")
+        question_error = st.session_state.pop(f"{room.room_code}_question_action_error", None)
+        if question_error:
+            st.error(question_error)
         current_theme = self._current_theme(state)
         current_level = self._current_level_value(state)
         question_data = state.get("question") or {}
@@ -428,7 +431,8 @@ class GameFlow:
                 '<div class="question-setup-text">'
                 f'<span>{html.escape(current_theme)} · {html.escape(current_level.title())}</span></div>'
             )
-            change_theme_clicked = change.button(
+            theme_slot = change.empty()
+            change_theme_clicked = theme_slot.button(
                 "Change", key=f"{room.room_code}_question_change_theme", width="stretch"
             )
         manual_key = f"{room.room_code}_question_text"
@@ -453,12 +457,16 @@ class GameFlow:
 
         if not question_data:
             if change_theme_clicked:
+                theme_slot.button("Changing…", key=f"{room.room_code}_theme_loading", disabled=True, width="stretch")
                 self._clear_question_draft(room, state, clear_widgets=False)
                 state["phase"] = "theme_selection"
                 self._save_state(room, state, clear_on_success=self._question_draft_keys(room)[1:])
-            with st.spinner("Processing question ..."):
-                if self._prepare_question(room, state, prefill_key, notify=False):
-                    return
+            waiting_slot = st.empty()
+            with waiting_slot.container():
+                visual.waiting_card("Finding your question…", "")
+            if self._prepare_question(room, state, prefill_key, notify=False):
+                return
+            waiting_slot.empty()
 
         if not state.get("question"):
             storyteller = self._current_storyteller_id(state)
@@ -477,24 +485,37 @@ class GameFlow:
                 self._save_state(room, state)
             return
 
-        confirm_clicked = st.button("Confirm question", key=f"{room.room_code}_question_confirm", type="primary", icon=":material/check:", width="stretch")
-        change_clicked = st.button("Change question", key=f"{room.room_code}_question_change", icon=":material/shuffle:", width="stretch")
+        confirm_slot = st.empty()
+        change_slot = st.empty()
+        edit_slot = st.empty()
+        confirm_clicked = confirm_slot.button("Confirm question", key=f"{room.room_code}_question_confirm", type="primary", icon=":material/check:", width="stretch")
+        change_clicked = change_slot.button("Change question", key=f"{room.room_code}_question_change", icon=":material/shuffle:", width="stretch")
         def toggle_question_edit() -> None:
             editing = st.session_state.get(editing_key, False)
             st.session_state[editing_key] = not editing
             st.session_state[manual_key] = question_data.get("question", "")
 
         edit_label = "Cancel edit" if st.session_state.get(editing_key, False) else "Edit question"
-        st.button(edit_label, key=f"{room.room_code}_question_edit", on_click=toggle_question_edit,
+        edit_slot.button(edit_label, key=f"{room.room_code}_question_edit", on_click=toggle_question_edit,
                   icon=":material/edit:", width="stretch")
         if change_theme_clicked:
+            theme_slot.button("Changing…", key=f"{room.room_code}_theme_loading", disabled=True, width="stretch")
+            confirm_slot.button("Confirm question", key=f"{room.room_code}_confirm_busy", disabled=True, width="stretch")
+            change_slot.button("Change question", key=f"{room.room_code}_change_theme_busy", disabled=True, width="stretch")
+            edit_slot.button(edit_label, key=f"{room.room_code}_edit_busy", disabled=True, width="stretch")
             self._clear_question_draft(room, state, clear_widgets=False)
             state["phase"] = "theme_selection"
             self._save_state(room, state, clear_on_success=self._question_draft_keys(room)[1:])
         if change_clicked:
-            with st.spinner("Processing question ..."):
-                if self._prepare_question(room, state, prefill_key, notify=True, force=True):
-                    return
+            theme_slot.button("Change", key=f"{room.room_code}_theme_busy", disabled=True, width="stretch")
+            confirm_slot.button("Confirm question", key=f"{room.room_code}_confirm_busy", disabled=True, width="stretch")
+            change_slot.button("Finding a question…", key=f"{room.room_code}_question_loading", disabled=True,
+                               icon=":material/progress_activity:", width="stretch")
+            edit_slot.button(edit_label, key=f"{room.room_code}_edit_busy", disabled=True, width="stretch")
+            if self._prepare_question(room, state, prefill_key, notify=True, force=True):
+                return
+            st.session_state[f"{room.room_code}_question_action_error"] = "Could not find another question. Please try again or choose a different theme."
+            common.rerun()
         if confirm_clicked:
             final_question = manual_value.strip()
             if not final_question:
@@ -506,18 +527,23 @@ class GameFlow:
                 final_question_en = final_question
             else:
                 try:
-                    with st.spinner("Saving canonical question..."):
-                        translation_trace = self.llm_service.translate_text_with_trace(
-                            final_question,
-                            source_language=room.settings.language,
-                            target_language="en",
-                        )
-                        if translation_trace["error"]:
-                            raise RuntimeError(translation_trace["error"])
-                        final_question_en = translation_trace["text"]
+                    theme_slot.button("Change", key=f"{room.room_code}_theme_during_confirmation_busy", disabled=True, width="stretch")
+                    confirm_slot.button("Preparing your question…", key=f"{room.room_code}_confirm_loading", disabled=True,
+                                        icon=":material/progress_activity:", width="stretch")
+                    change_slot.button("Change question", key=f"{room.room_code}_change_during_confirmation_busy", disabled=True, width="stretch")
+                    edit_slot.button(edit_label, key=f"{room.room_code}_edit_during_confirmation_busy", disabled=True, width="stretch")
+                    translation_trace = self.llm_service.translate_text_with_trace(
+                        final_question,
+                        source_language=room.settings.language,
+                        target_language="en",
+                    )
+                    if translation_trace["error"]:
+                        raise RuntimeError(translation_trace["error"])
+                    final_question_en = translation_trace["text"]
                 except Exception as exc:
                     logger.warning("Edited question translation unavailable (%s)", type(exc).__name__)
-                    st.error("We couldn't translate your edited question. Try again or cancel the edit to use the original.")
+                    st.session_state[f"{room.room_code}_question_action_error"] = "We couldn't translate your edited question. Try again or cancel the edit to use the original."
+                    common.rerun()
                     return
             current_question_data = state.get("question") or {}
             question_id = current_question_data.get("question_id")
@@ -632,10 +658,10 @@ class GameFlow:
         else:
             message = ("All answers submitted. Moving to judgment..." if state.get("game_mode") == "two_player"
                        else "All answers submitted. Moving to guessing...")
-            st.info(message)
+            visual.waiting_card(message, "")
 
         if state.get("game_mode") != "two_player" and is_host:
-            with st.popover("Host controls", width="stretch"):
+            with st.popover("Host controls", key="answer_host_controls", width="stretch"):
                 st.caption("Move on without the remaining answers. Players who haven't answered won't have a choice this round.")
                 has_storyteller_answer = bool((submissions.get(storyteller_id) or "").strip())
                 if not has_storyteller_answer:
@@ -670,7 +696,13 @@ class GameFlow:
         storyteller_id: Optional[str],
     ) -> None:
         submit_label = "Save changes" if current_player_id in submissions else "Submit answer"
-        if st.button(submit_label, key=f"{room.room_code}_submit_answer_{current_player_id}",
+        suggestion_error_key = f"{room.room_code}_suggest_error_{current_player_id}"
+        suggestion_error = st.session_state.pop(suggestion_error_key, None)
+        if suggestion_error:
+            st.error(suggestion_error)
+        submit_slot = st.empty()
+        suggestion_slot = st.empty()
+        if submit_slot.button(submit_label, key=f"{room.room_code}_submit_answer_{current_player_id}",
                      type="primary", icon=":material/check:", width="stretch"):
             answer = st.session_state.get(input_key, "").strip()
             if not answer:
@@ -703,33 +735,38 @@ class GameFlow:
             self._save_state(room, state, clear_on_success=(editing_key,))
 
         if (state.get("game_mode") != "two_player"
-                and st.button("Suggest answer", key=f"{room.room_code}_suggest_answer_{current_player_id}",
+                and suggestion_slot.button("Suggest answer", key=f"{room.room_code}_suggest_answer_{current_player_id}",
                               icon=":material/shuffle:", width="stretch")):
             try:
-                with st.spinner("Suggesting answer..."):
-                    resp = self.llm_service.suggest_answer(
-                        question=question,
-                        storyteller_name=storyteller_name,
-                        language=room.settings.language,
-                        theme=self._current_theme(state),
-                        level=current_level,
-                        question_en=(state.get("question") or {}).get("question_en", question),
-                    )
-                    suggestion = (resp.answer or "").strip()
-                    if not suggestion:
-                        st.error("Could not generate an answer suggestion. Please try again.")
-                        return
-                    st.session_state[prefill_key] = suggestion
+                submit_slot.button(submit_label, key=f"{room.room_code}_submit_suggest_busy_{current_player_id}",
+                                   disabled=True, width="stretch")
+                suggestion_slot.button("Thinking of an answer…", key=f"{room.room_code}_suggest_loading_{current_player_id}",
+                                       icon=":material/progress_activity:", disabled=True, width="stretch")
+                resp = self.llm_service.suggest_answer(
+                    question=question,
+                    storyteller_name=storyteller_name,
+                    language=room.settings.language,
+                    theme=self._current_theme(state),
+                    level=current_level,
+                    question_en=(state.get("question") or {}).get("question_en", question),
+                )
+                suggestion = (resp.answer or "").strip()
+                if not suggestion:
+                    st.session_state[suggestion_error_key] = "Could not generate an answer suggestion. Please try again."
                     common.rerun()
+                    return
+                st.session_state[prefill_key] = suggestion
+                common.rerun()
             except Exception as exc:
                 logger.warning("Answer suggestion unavailable (%s)", type(exc).__name__)
-                st.error("Answer suggestions are unavailable right now. Please write your own answer.")
+                st.session_state[suggestion_error_key] = "Answer suggestions are unavailable right now. Please write your own answer."
+                common.rerun()
 
     def _render_two_player_judgment(
         self, room: Room, state: Dict[str, object], storyteller_id: Optional[str], current_player_id: Optional[str]
     ) -> None:
         st.header("Your decision" if self._storyteller_can_act(storyteller_id, current_player_id)
-                  else "Waiting for the Storyteller")
+                  else "Your answer")
         question = (state.get("question") or {}).get("question", "")
         visual.question_context(self._current_theme(state), self._current_level_value(state))
         self._render_save_question(room, state, storyteller_id, current_player_id)
@@ -886,7 +923,7 @@ class GameFlow:
             st.success("All guesses submitted! Revealing...")
 
         if is_host:
-            with st.popover("Host controls", width="stretch"):
+            with st.popover("Host controls", key="guess_host_controls", width="stretch"):
                 st.caption("Reveal now without the remaining guesses. The round will be scored immediately.")
                 if st.button("Reveal without all guesses", key="host_force_reveal", width="stretch"):
                     state["phase"] = "reveal"
@@ -1652,12 +1689,13 @@ class GameFlow:
     ) -> None:
         toast_key = f"{room.room_code}_question_saved_toast_{player_id}"
         toast_message = st.session_state.pop(toast_key, None)
-        saved_toast = st.empty()
-        removed_toast = st.empty()
-        if toast_message == "saved":
-            saved_toast.toast("Question saved for your next turn!", icon=":material/bookmark:")
-        elif toast_message == "removed":
-            removed_toast.toast("Question removed from your saved list.", icon=":material/bookmark:")
+        with st.container(key="question_toast_slots"):
+            saved_toast = st.empty()
+            removed_toast = st.empty()
+            if toast_message == "saved":
+                saved_toast.toast("Question saved for your next turn!", icon=":material/bookmark:")
+            elif toast_message == "removed":
+                removed_toast.toast("Question removed from your saved list.", icon=":material/bookmark:")
         question = state.get("question") or {}
         text = str(question.get("question") or "")
         if not player_id or player_id == storyteller_id or not question.get("question_id"):

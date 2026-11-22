@@ -57,6 +57,8 @@ Question styles:
 - **Deep**: reflective, emotionally safe prompts that invite a personally true answer.
 - **Random 🎲**: wildcard theme for surprising questions.
 
+The approved visual and interaction decisions, including loading states and the round recap, are recorded in [the Thorajit design notes](design/thorajit/README.md). Update those notes when a design decision changes; written decisions supersede older mockups.
+
 ### 1.4 Scoring Details
 
 In two-player mode, both players submit answers privately. The Storyteller judges the Listener's answer; a correct Shallow answer earns the Listener 1 point and a correct Deep answer earns 3. Matching answers are allowed. The target is checked after both players have had an equal number of Listener turns. The highest score wins, or equal scores tie. Incomplete rounds award no points.
