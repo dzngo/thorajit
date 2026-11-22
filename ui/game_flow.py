@@ -235,7 +235,8 @@ class GameFlow:
                 if latest_state.get("phase") != state.get("phase"):
                     common.rerun()
                     return
-                state = latest_state
+                # Keep the saved snapshot unchanged when panel actions edit state.
+                state = copy.deepcopy(latest_state)
                 is_host = player_id == room.host_id and not held
         if panel == "scores":
             with st.container(border=True, key="card_game_scoreboard"):
