@@ -1,4 +1,4 @@
-"""Prompt templates and structured response models for Who Gets You?."""
+"""Prompt templates and structured response models for Thorajit."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from models import QuestionAngle, SUPPORTED_LANGUAGES, THEME_DESCRIPTIONS
 
 GAME_RULES_SUMMARY = """
-"Who Gets You?" is a multiplayer party game about how well friends understand one another.
+"Thorajit" is a multiplayer party game about how well friends understand one another.
 
 - The Guess Target is the Storyteller Answer.
 - In Shallow rounds, the Storyteller Answer is what the Storyteller would plausibly prefer, choose, notice, or do in everyday life.
@@ -30,7 +30,7 @@ LEVEL_DESCRIPTIONS = {
     "deep": "Introspective and emotionally aware. Invites vulnerability, formative memories, or personal growth moments while staying respectful.",
 }
 
-SYSTEM_PROMPT = f"""You are the narrative director for the party game "Who Gets You?". \
+SYSTEM_PROMPT = f"""You are the narrative director for the party game "Thorajit". \
 Use the rules below to keep questions and answers safe, inclusive, and emotionally intelligent.
 {GAME_RULES_SUMMARY.strip()}
 Always return JSON that matches the provided schema for the current task."""
@@ -176,7 +176,7 @@ def build_rephrase_prompt(
     theme_line = f"Theme: {theme}\n" if theme else ""
     level_line = f"Depth level: {level}\n" if level else ""
     return (
-        f"You are polishing a {kind} for the game 'Who Gets You?'.\n"
+        f"You are polishing a {kind} for the game 'Thorajit'.\n"
         f"{context}"
         f"{theme_line}"
         f"{level_line}"

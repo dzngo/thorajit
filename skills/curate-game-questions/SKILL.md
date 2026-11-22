@@ -1,6 +1,6 @@
 ---
 name: curate-game-questions
-description: Generate and curate human-approved questions for Who Gets You, including bank diversity review, web inspiration, semantic duplicate checks, and local-bank consolidation.
+description: Generate and curate human-approved questions for Thorajit, including bank diversity review, web inspiration, semantic duplicate checks, and local-bank consolidation.
 ---
 
 # Curate game questions

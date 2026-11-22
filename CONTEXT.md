@@ -1,6 +1,6 @@
-# Who Gets You Context
+# Thorajit Context
 
-This context defines the core language for the party game "Who Gets You?" so prompts, UI, and rules use the same terms.
+This context defines the core language for the party game "Thorajit" so prompts, UI, and rules use the same terms.
 
 ## Language
 

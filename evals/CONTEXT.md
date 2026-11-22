@@ -1,6 +1,6 @@
 # Question Review Evals Context
 
-This context defines the lightweight question-quality review tool for "Who Gets You?". The eval tool exists to speed up prompt iteration without running a full multiplayer game.
+This context defines the lightweight question-quality review tool for "Thorajit". The eval tool exists to speed up prompt iteration without running a full multiplayer game.
 
 ## Language
 
