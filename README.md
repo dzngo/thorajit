@@ -1,4 +1,28 @@
-# Who Gets You?
+# Thorajit
+
+Thorajit is a social game about how well friends know one another. Its Streamlit interface follows the [saved design direction and screen references](design/thorajit/README.md).
+
+## Run locally
+
+Use Python 3.12 or later and install the dependencies in a virtual environment:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/streamlit run app.py
+```
+
+Open the local URL printed by Streamlit. For multiple players, each player opens the app in a separate browser session. The room store is a local JSON file; it is intended for a single app process, not multiple independent servers. The app reads environment settings from `.env` when present. See **Question bank and statistics** below for database and optional assisted-selection configuration.
+
+Player resumption currently selects an existing identity without authentication, including the host identity. Use it with trusted players until host and player authentication are implemented.
+
+The welcome screen and English curated-question flow do not require an assistant key. Answer suggestions and translations require the configured provider credentials; if suggestions are unavailable, players can still enter an answer themselves.
+
+Run the gameplay tests with:
+
+```sh
+.venv/bin/python -m unittest discover -s tests/gameplay -q
+```
 
 ## 1. Core Game Rules
 
@@ -6,32 +30,34 @@
 Celebrate how well friends “get” one another.
 
 ### 1.2 Setup
-1. Each person enters a display name.
-2. One player becomes the Host, creates/reuses a room, and sets:
+1. Each person enters a display name and selects a distinct emoji for the room.
+2. One player becomes the Host, creates a room, and sets:
    - **Language**
-   - **LLM provider/model**
+   - **Public or private room**
    - **Target score** (default 10 for two players and 100 for standard mode, editable in lobby)
-3. Host shares room code; others join.
+3. Other players select the room by its name, or by its code for a private room.
 4. Minimum players to start: **2**. Exactly two players use two-player mode; three or more use standard mode.
 5. Storyteller order is randomized once at game start, then rotates every round.
+6. During a game, players can leave permanently from the **Game settings** button. If their departure would leave fewer than two players, or reduce a standard game to two, they must confirm that the game will end for everyone. Otherwise the remaining players continue; if the host leaves, another player becomes host.
 
 ### 1.3 Turn Structure
 In standard mode, each round follows this flow:
-1. **Theme selection** — Storyteller picks a theme (always dynamic).
-2. **Level selection** — Storyteller picks depth: **Shallow** or **Deep**.
-3. **Question proposal** — A curated question is sampled; the Storyteller can edit, change, then confirm. Listeners can save questions for later turns.
-4. **Answer entry** —
+1. **Theme and level selection** — Storyteller picks a theme and depth: **Shallow** or **Deep**.
+2. **Question proposal** — A curated question is sampled; the Storyteller can edit, change, then confirm. Listeners can save questions for later turns.
+3. **Answer entry** —
    - Storyteller submits the Storyteller answer.
    - Each listener submits one plausible answer.
    - Duplicate answers are blocked using exact-match checks.
-5. **Guessing** — All listeners see the full answer list and guess which one is the Storyteller answer.
-6. **Reveal & scoring** — Storyteller answer is revealed, listener guesses are shown, points are applied.
-7. **Rotation** — If no winner yet, next Storyteller starts the next round.
+4. **Guessing** — Listeners guess the Storyteller's answer from the other players' answers; their own answer is hidden.
+5. **Reveal & scoring** — Storyteller answer is revealed, listener guesses are shown, points are applied.
+6. **Rotation** — If no winner yet, next Storyteller starts the next round.
 
 Question styles:
 - **Shallow**: lightweight, realistic, low-pressure prompts about an everyday preference, habit, routine, simple choice, or plausible situation. A generic poll is allowed and humor is optional.
 - **Deep**: reflective, emotionally safe prompts that invite a personally true answer.
 - **Random 🎲**: wildcard theme for surprising questions.
+
+The approved visual and interaction decisions, including loading states and the round recap, are recorded in [the Thorajit design notes](design/thorajit/README.md). Update those notes when a design decision changes; written decisions supersede older mockups.
 
 ### 1.4 Scoring Details
 
@@ -42,15 +68,17 @@ Standard mode depth multiplier:
 - **Deep = x2**
 
 Base scoring by listener correctness:
-1. **Exactly one listener correct**:
+1. **Exactly one listener is correct**:
    - Correct listener: `+3 × Mult`
    - Storyteller: `+3 × Mult`
-2. **Some (not all) listeners correct**:
-   - Each correct listener: `+1 × Mult`
-   - Storyteller: `+1 × Mult`
-3. **Everyone correct OR nobody correct**:
-   - Every listener: `+2 × Mult`
+2. **More than one but not all listeners are correct**:
+   - Each correct listener: `+2 × Mult`
+   - Storyteller: `+2 × Mult`
+3. **Everyone or nobody is correct**:
+   - Every listener: `+1 × Mult`
    - Storyteller: `0`
+
+When everyone or nobody is correct, every listener receives the base points, even if they guessed incorrectly or the host reveals before they submit a guess.
 
 Decoy bonus (stacks with base scoring):
 - If a listener’s submitted answer is selected by `N` other listeners, that listener gets:
@@ -70,17 +98,17 @@ Landing screen with two actions:
 - **Join room**
 
 ### 2.2 Host Flow
-1. **Host name and room name**
-   - If room exists: host can **Reuse room** or **Change settings**
-2. **Language + LLM selection**
-3. **Lobby**
+1. **Create room** — host name, emoji, room name, language and privacy
+   - If the name is already used, choose another name or follow the join/resume flow.
+2. **Lobby**
    - Shows room summary and connected players
    - Allows max-score update and player removal
+   - Allows the host to save or discard language and privacy changes without removing players
    - Start button enabled when at least 2 players are connected
 
 ### 2.3 Join Flow
-1. **Room code**
-2. If room not started: **Player name** -> join lobby
+1. **Find a room** by its public name or private code
+2. If room not started: **Player name and emoji** -> join lobby
 3. If room already started: **Resume player** (select an existing player in room)
 4. **Lobby** (pre-game) or direct game resume (in-game)
 
@@ -93,13 +121,12 @@ Persistent board elements:
 - “You are playing as …” identity cue
 
 Standard mode phases:
-1. **Theme Selection** — Storyteller only
-2. **Level Selection** — Storyteller only (Shallow/Deep)
-3. **Question Proposal** — Storyteller can edit/change/confirm
-4. **Answer Entry** — Every player submits one answer; no author names shown here
-5. **Guessing** — Listeners guess the Storyteller answer from all submitted answers
-6. **Reveal & Scoring** — Show Storyteller answer, listener guesses, and per-round point deltas
-7. **Results** — Final scoreboard and winners
+1. **Theme and level selection** — Storyteller only (Shallow/Deep)
+2. **Question Proposal** — Storyteller can edit/change/confirm
+3. **Answer Entry** — Every player submits one answer; no author names shown here
+4. **Guessing** — Listeners guess the Storyteller answer from the other players' answers
+5. **Reveal & Scoring** — Show Storyteller answer, listener guesses, and per-round point deltas
+6. **Results** — Final scoreboard and winners, with a read-only round recap accessible to every player. Navigate completed rounds with the arrows or dropdown; each shows its question, answers, authors, and guesses. Older games may lack question or answer snapshots.
 
 In two-player mode, both players submit answers, then the Storyteller judges the Listener's answer before reveal. The final results show each player's Listener accuracy and correct answers by level.
 

@@ -67,8 +67,16 @@ class LLMService:
     RECENT_ANGLE_EXCLUSION_COUNT = 3
 
     def __init__(self, llm_name: str = "gemini-2.5-flash") -> None:
-        self._llm = get_llm(model_name=llm_name)
+        self.selection_name = llm_name.lower()
+        self._client = None
         self._translator = None
+
+    @property
+    def _llm(self):
+        """Connect only when an assisted feature is actually requested."""
+        if self._client is None:
+            self._client = get_llm(model_name=self.selection_name)
+        return self._client
 
     def suggest_themes(self) -> List[str]:
         """Returns a list of starter themes."""

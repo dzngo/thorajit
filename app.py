@@ -1,5 +1,6 @@
 import streamlit as st
 from dotenv import load_dotenv
+from pathlib import Path
 
 
 from ui import routing
@@ -17,8 +18,8 @@ def initialize_question_counters(environment: str, questions: tuple[tuple[str, s
 
 def main() -> None:
     st.set_page_config(
-        page_title="Who Gets You?",
-        page_icon="🎭",
+        page_title="Thorajit",
+        page_icon=str(Path(__file__).parent / "design" / "thorajit" / "assets" / "icon.png"),
         layout="centered",
     )
     import os

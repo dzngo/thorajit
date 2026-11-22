@@ -508,6 +508,7 @@ class Player:
     role: PlayerRole
     joined_at: datetime
     is_connected: bool = True
+    emoji: Optional[str] = None
 
     def to_dict(self) -> Dict[str, str]:
         return {
@@ -516,6 +517,7 @@ class Player:
             "role": self.role.value,
             "joined_at": self.joined_at.isoformat(),
             "is_connected": self.is_connected,
+            "emoji": self.emoji,
         }
 
     @classmethod
@@ -526,6 +528,7 @@ class Player:
             role=PlayerRole(data["role"]),
             joined_at=_iso_to_datetime(data["joined_at"]),
             is_connected=data.get("is_connected", True),
+            emoji=data.get("emoji"),
         )
 
 
